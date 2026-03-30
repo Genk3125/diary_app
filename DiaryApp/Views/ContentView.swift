@@ -5,22 +5,47 @@
 import SwiftUI
 
 struct ContentView: View {
+    private enum Tab {
+        case diary
+        case `import`
+        case book
+        case plan
+    }
+
     @StateObject private var store = DiaryStore()
+    @State private var selectedTab: Tab = .diary
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             DiaryListView()
+                .tag(Tab.diary)
                 .tabItem { Label("日記", systemImage: "book.fill") }
 
             ImportView()
+                .tag(Tab.import)
                 .tabItem { Label("インポート", systemImage: "square.and.arrow.down") }
 
             BookPreviewView()
+                .tag(Tab.book)
                 .tabItem { Label("書籍化", systemImage: "book.closed.fill") }
 
             PlanView()
+                .tag(Tab.plan)
                 .tabItem { Label("プラン", systemImage: "crown") }
         }
         .environmentObject(store)
+        .task {
+            store.importQueuedSharedEntriesIfNeeded()
+        }
+        .onOpenURL { url in
+            guard isShareImportURL(url) else { return }
+            selectedTab = .diary
+            store.importQueuedSharedEntriesIfNeeded()
+        }
+    }
+
+    private func isShareImportURL(_ url: URL) -> Bool {
+        guard url.scheme == "diarybook" else { return false }
+        return url.host == "import" || url.path == "/import"
     }
 }

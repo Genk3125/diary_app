@@ -16,6 +16,7 @@ struct PlanView: View {
         NavigationStack {
             List {
                 currentPlanSection
+                bookLayoutSection
                 featuresSection
                 if !store.currentPlan.isPro {
                     purchaseSection
@@ -81,6 +82,49 @@ struct PlanView: View {
         }
     }
 
+    private var bookLayoutSection: some View {
+        Section(
+            content: {
+                TextField("タイトル", text: configBinding(\.title))
+                TextField("サブタイトル", text: configBinding(\.subtitle))
+
+                Picker("並び順", selection: configBinding(\.sortOrder)) {
+                    ForEach(BookLayoutConfig.SortOrder.allCases, id: \.self) { sortOrder in
+                        Text(sortOrder.displayName).tag(sortOrder)
+                    }
+                }
+
+                Picker("グループ", selection: configBinding(\.grouping)) {
+                    ForEach(BookLayoutConfig.GroupingStyle.allCases, id: \.self) { grouping in
+                        Text(grouping.displayName).tag(grouping)
+                    }
+                }
+
+                Toggle("ソースアプリを掲載", isOn: configBinding(\.includeSourceApp))
+
+                Picker("写真の反映数", selection: photoLimitBinding) {
+                    Text("プラン既定（\(store.currentPlan.maxPhotosInPrint)枚）").tag(Optional<Int>.none)
+                    ForEach(0...store.currentPlan.maxPhotosInPrint, id: \.self) { count in
+                        Text("\(count)枚").tag(Optional<Int>.some(count))
+                    }
+                }
+
+                Picker("動画の反映数", selection: videoLimitBinding) {
+                    Text("プラン既定（\(store.currentPlan.maxVideosInPrint)本）").tag(Optional<Int>.none)
+                    ForEach(0...store.currentPlan.maxVideosInPrint, id: \.self) { count in
+                        Text("\(count)本").tag(Optional<Int>.some(count))
+                    }
+                }
+            },
+            header: {
+                Text("書籍化設定")
+            },
+            footer: {
+                Text("設定は書籍化プレビューとPDF出力に保存反映されます。未設定では現在の\(store.currentPlan.displayName)プラン上限を使い、明示設定してもプラン上限は超えません。")
+            }
+        )
+    }
+
     private func featureRow(_ name: String, free: String, pro: String) -> some View {
         HStack {
             Text(name)
@@ -140,5 +184,41 @@ struct PlanView: View {
             errorMessage = error.localizedDescription
             showError = true
         }
+    }
+
+    private func configBinding<Value>(_ keyPath: WritableKeyPath<BookLayoutConfig, Value>) -> Binding<Value> {
+        Binding(
+            get: { store.bookLayoutConfig[keyPath: keyPath] },
+            set: { store.setBookLayoutConfig(keyPath, to: $0) }
+        )
+    }
+
+    private var photoLimitBinding: Binding<Int?> {
+        Binding(
+            get: {
+                normalizedLimit(
+                    store.bookLayoutConfig.maxPhotosPerEntry,
+                    maxAllowed: store.currentPlan.maxPhotosInPrint
+                )
+            },
+            set: { store.setBookLayoutConfig(\.maxPhotosPerEntry, to: $0) }
+        )
+    }
+
+    private var videoLimitBinding: Binding<Int?> {
+        Binding(
+            get: {
+                normalizedLimit(
+                    store.bookLayoutConfig.maxVideosPerEntry,
+                    maxAllowed: store.currentPlan.maxVideosInPrint
+                )
+            },
+            set: { store.setBookLayoutConfig(\.maxVideosPerEntry, to: $0) }
+        )
+    }
+
+    private func normalizedLimit(_ value: Int?, maxAllowed: Int) -> Int? {
+        guard let value else { return nil }
+        return max(0, min(value, maxAllowed))
     }
 }

@@ -48,6 +48,7 @@ All Views ──────────────────── @Environm
 | **View / Book** | `BookPreviewView.swift` | 印刷プレビュー、グループ化、制限警告 |
 | **Storage** | `DiaryStore.swift` | JSON 読み書き、メディアファイル管理、プラン参照 |
 | **Import** | `ImportManager.swift` | 拡張子 → インポーター ルーティング |
+| **Import / Shared** | `ShareTransfer.swift` | App Group queue / payload 共通定義 |
 | **Import** | `JSONImporter.swift` | JSON → `[DiaryEntry]` |
 | **Import** | `CSVImporter.swift` | CSV → `[DiaryEntry]` |
 | **Import** | `ZIPImporter.swift` | ZIP 展開（スタブ）→ JSON/CSV 再帰パース |
@@ -66,7 +67,7 @@ All Views ──────────────────── @Environm
 | 新しいインポート形式 | `ImportManager.swift` に case 追加 + `XxxImporter.swift` 追加 |
 | ZIP 実装 | `ZIPImporter.swift` のスタブを ZipFoundation で置き換え |
 | PDF インポート | `ImportManager.swift` の `.pdf` ケース + `PDFImporter.swift` |
-| 共有シート受け取り | Share Extension target 追加 → `ImportManager.importFile(at:)` 呼び出し |
+| 共有シート受け取り | `ShareViewController.swift` → `ShareTransfer.swift` → `ContentView.swift` / `DiaryStore.importQueuedSharedEntriesIfNeeded()` |
 | StoreKit 課金 | `UserPlan` を StoreKit Product に紐付け、`DiaryStore.currentPlan` を更新 |
 | CloudKit 同期 | `DiaryStore` の `saveEntries` / `loadEntries` を CloudKit 実装に差し替え |
 | 動画クラウドアップロード | `VideoAttachment.hostedAssetID` / `remoteURL` を書き戻す処理を追加 |
@@ -96,6 +97,18 @@ User input
       → XxxImporter → [DiaryEntry]（sourceApp 付き）
         → DiaryStore.importEntries()（重複 id はスキップ）
           → diary_entries.json に書き込み
+```
+
+### Share Extension 受け取り
+```
+他アプリの共有シート
+  → ShareViewController
+    → ShareTransfer.swift（App Group queue / 画像 staging）
+      → diarybook://import
+        → ContentView.onOpenURL / .task
+          → DiaryStore.importQueuedSharedEntriesIfNeeded()
+            → ImportManager.importSharePayloads()
+              → DiaryStore.importEntries()
 ```
 
 ### 書籍化プレビュー

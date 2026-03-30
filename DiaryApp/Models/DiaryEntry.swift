@@ -12,7 +12,7 @@ struct DiaryEntry: Codable, Identifiable, Equatable {
     var photos: [PhotoAttachment]
     var videos: [VideoAttachment]
 
-    /// Source identifier: "manual", "json_import", "csv_import", "zip_import", "text_paste", "pdf_import"
+    /// Source identifier: "manual", "json_import", "csv_import", "zip_import", "text_paste", "pdf_import", "share_extension"
     var sourceApp: String
 
     /// Flexible key-value store for source-specific metadata (e.g. original app fields)

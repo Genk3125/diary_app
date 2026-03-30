@@ -1,7 +1,6 @@
 // ImportManager.swift
 // Routes incoming files to the correct importer.
 // Adding a new format = add a case here + a new XxxImporter.swift.
-// TODO: Add share extension handler that calls importFile(at:) directly.
 
 import Foundation
 import UniformTypeIdentifiers
@@ -14,6 +13,7 @@ enum ImportSource: String {
     case zip     = "zip_import"
     case text    = "text_paste"
     case pdf     = "pdf_import"
+    case share   = "share_extension"
 }
 
 // MARK: - Errors
@@ -57,5 +57,99 @@ struct ImportManager {
     /// Parse pasted plain text into one or more entries.
     static func importText(_ text: String) throws -> [DiaryEntry] {
         return try TextImporter.importEntries(from: text)
+    }
+
+    /// Convert queued share payloads into DiaryEntry values.
+    static func importSharePayloads(
+        _ payloads: [SharePayload],
+        imageImporter: (_ stagedFilename: String, _ sortOrder: Int) -> PhotoAttachment?
+    ) -> [DiaryEntry] {
+        payloads.compactMap { payload in
+            importSharePayload(payload, imageImporter: imageImporter)
+        }
+    }
+
+    private static func importSharePayload(
+        _ payload: SharePayload,
+        imageImporter: (_ stagedFilename: String, _ sortOrder: Int) -> PhotoAttachment?
+    ) -> DiaryEntry? {
+        var bodyParts: [String] = []
+        var photos: [PhotoAttachment] = []
+        var kinds: Set<String> = []
+        var textCount = 0
+        var urlCount = 0
+
+        for item in payload.items {
+            kinds.insert(item.kind.rawValue)
+
+            switch item.kind {
+            case .text:
+                guard let text = trimmed(item.text), !text.isEmpty else { continue }
+                bodyParts.append(text)
+                textCount += 1
+
+            case .url:
+                guard let urlString = trimmed(item.text), !urlString.isEmpty else { continue }
+                bodyParts.append(urlString)
+                urlCount += 1
+
+            case .image:
+                guard let stagedFilename = item.imageFilename else { continue }
+                let sortOrder = photos.count
+                if let photo = imageImporter(stagedFilename, sortOrder) {
+                    photos.append(photo)
+                }
+            }
+        }
+
+        let body = bodyParts
+            .joined(separator: "\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !body.isEmpty || !photos.isEmpty else { return nil }
+
+        var metadata: [String: String] = [
+            "sharedPayloadID": payload.id.uuidString
+        ]
+        if !kinds.isEmpty {
+            metadata["sharedItemKinds"] = kinds.sorted().joined(separator: ",")
+        }
+        if textCount > 0 {
+            metadata["sharedTextCount"] = String(textCount)
+        }
+        if urlCount > 0 {
+            metadata["sharedURLCount"] = String(urlCount)
+        }
+        if !photos.isEmpty {
+            metadata["sharedImageCount"] = String(photos.count)
+        }
+
+        return DiaryEntry(
+            id: UUID(),
+            date: payload.date,
+            title: titleForSharedEntry(body: body, photoCount: photos.count),
+            body: body,
+            photos: photos,
+            videos: [],
+            sourceApp: ImportSource.share.rawValue,
+            metadata: metadata
+        )
+    }
+
+    private static func titleForSharedEntry(body: String, photoCount: Int) -> String {
+        let firstLine = body
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first(where: { !$0.isEmpty })
+
+        if let firstLine, !firstLine.isEmpty {
+            return firstLine.count > 60 ? String(firstLine.prefix(60)) + "…" : firstLine
+        }
+
+        return photoCount == 1 ? "共有された画像" : "共有された画像 \(photoCount)枚"
+    }
+
+    private static func trimmed(_ text: String?) -> String? {
+        text?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

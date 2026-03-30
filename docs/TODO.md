@@ -51,16 +51,16 @@
 | PDF インポート（PDFKit テキスト抽出） | `PDFImporter` |
 | 書籍化プレビュー（月・年グループ） | `BookPreviewView` |
 | PDF 書き出し（UIGraphicsPDFRenderer） | `BookPreviewView` |
+| 書籍レイアウト設定の編集・保存（タイトル / 並び順 / グループ / 反映数） | `PlanView` / `DiaryStore` / `BookPreviewView` |
 | QR コード生成・表示（CoreImage） | `QRCodeView` → `DiaryDetailView` |
 | StoreKit 2 課金ゲート | `PurchaseManager` → `DiaryStore` → `PlanView` |
-| Share Extension（UI） | `ShareViewController` |
+| Share Extension（テキスト / URL / 画像 → App Group queue → 本体取り込み） | `ShareViewController` / `ShareTransfer.swift` / `ContentView` / `DiaryStore` |
 
 ### ⚠️ 実装済みだが設定が必要なもの（コードは書いた、外部設定が未）
 
 | 機能 | 何が足りないか |
 |---|---|
 | StoreKit 2 本番購入 | App Store Connect で Product ID 登録が必要（後述） |
-| Share Extension データ転送 | App Group capability の設定が必要（後述） |
 
 ---
 
@@ -90,34 +90,20 @@ Product ID `com.yourapp.diaryapp.pro.monthly` はコード内で使用済み。
 
 ---
 
-### 🔴 B. Share Extension — App Group 設定
+### ✅ B. Share Extension 受け取りフロー
 
-**背景：** `ShareExtension/ShareViewController.swift` は UI まで実装済み。
-ユーザーが他アプリでテキスト・URL・画像を共有すると「DiaryBook に保存」がシートに出る。
-ただし、Extension → 本体アプリへのデータ転送部分がコメントアウト。
-iOS の sandbox 制約で、App Group なしに Extension と本体アプリはファイルを共有できない。
-
-**手順：**
-1. Xcode > DiaryApp ターゲット > Signing & Capabilities > + Capability > **App Groups**
-   - グループ ID: `group.com.yourapp.diaryapp`
-2. 同様に ShareExtension ターゲットにも同じ App Group を追加
-3. `ShareViewController.swift` のコメントを外す（2箇所）:
-   ```swift
-   // TODO: App Group capability を有効化後にコメントを外す
-   if let container = FileManager.default
-       .containerURL(forSecurityApplicationGroupIdentifier: groupID) { ... }
-   ```
-   ```swift
-   // TODO: URL scheme 登録後にコメントを外す
-   extensionContext?.open(URL(string: "diarybook://import")!, completionHandler: nil)
-   ```
-4. `DiaryApp.swift`（または `ContentView`）の `onOpenURL` で `diarybook://import` を受け取り、
-   App Group キューファイルを読んで `store.importEntries()` を呼ぶ処理を追加
+**対応内容：**
+1. Share Extension でテキスト / URL / 画像を `SharePayload` に正規化し、App Group queue に保存
+2. `diarybook://import` で本体アプリを起動
+3. 本体アプリは起動時と URL 受信時に queue を読み、`ImportManager` で `DiaryEntry` に変換して `DiaryStore.importEntries()` に流す
+4. 画像は App Group の一時領域から本体アプリの `Documents/media/` へ移動して `PhotoAttachment` 化
 
 **関連ファイル：**
-- `ShareExtension/ShareViewController.swift` — Extension 本体。`groupID = "group.com.yourapp.diaryapp"` が定義済み
-- `DiaryApp/DiaryApp.swift` — URL scheme ハンドラ追加先
-- `project.yml` — URL scheme `diarybook://` は登録済み
+- `Shared/ShareTransfer.swift`
+- `ShareExtension/ShareViewController.swift`
+- `DiaryApp/Views/ContentView.swift`
+- `DiaryApp/Storage/DiaryStore.swift`
+- `DiaryApp/Import/ImportManager.swift`
 
 ---
 
@@ -174,8 +160,7 @@ DiaryStore.importEntries() → バルク upsert（conflict on id → skip）
 |---|---|---|
 | ZIP 内画像の添付 | 現状 JSON/CSV のみ抽出。画像も読んで `PhotoAttachment` に変換する | `ZIPImporter.scanDirectory()` |
 | PDF OCR 対応 | スキャン画像 PDF はテキスト抽出不可。Vision で OCR を追加 | `PDFImporter.swift` |
-| 書籍化 → 実 PDF 出力 | `BookPreviewView` はプレビューのみ。`UIGraphicsPDFRenderer` で実際に PDF を生成する処理が未実装 | `BookPreviewView.swift` |
-| ImportView の文言更新 | Share Extension 完成後に「今後の予定」セクションを「対応済み」に変更 | `ImportView.swift` |
+| 書籍 PDF のレイアウト強化 | 現状の PDF は基本レイアウトのみ。表紙デザイン、余白、フォントなどの調整余地がある | `BookPreviewView.swift` / `BookLayoutConfig.swift` |
 | 検索・フィルター | 日付・キーワードで絞り込み。`DiaryListView` に検索バー追加 | `DiaryListView.swift` |
 | iPad 対応 | `project.yml` の `TARGETED_DEVICE_FAMILY: "1"` → `"1,2"` + レイアウト調整 | `project.yml` |
 | iCloud Backup 除外 | `Documents/media/` は大容量になるため `.isExcludedFromBackupKey` を設定 | `DiaryStore.setupDirectories()` |
@@ -188,7 +173,7 @@ DiaryStore.importEntries() → バルク upsert（conflict on id → skip）
 |---|---|---|
 | `@Published entries` の全画面再描画 | エントリ数が多いと重くなる | `id` ベースの差分更新に変更 |
 | 孤立メディアファイル | エントリ削除時に漏れた場合ストレージが増え続ける | 起動時に `diary_entries.json` と `media/` を突合して孤立ファイルを削除 |
-| `BookLayoutConfig` 設定 UI なし | DiaryStore が持っているが、ユーザーが変更する画面がない | `PlanView` に設定セクション追加 or 専用 `SettingsView` を作成 |
+| `BookLayoutConfig` の高度設定不足 | タイトル・並び順・反映数は編集できるが、ページサイズやフォントなどは未対応 | `BookLayoutConfig.swift` / `PlanView.swift` / `BookPreviewView.swift` |
 | `DiaryStore.currentPlan` は `private(set)` | テスト・デバッグ時に外部から plan を変えられない | デバッグ用の `setplan(_:)` メソッドを `#if DEBUG` で追加 |
 
 ---
@@ -227,6 +212,108 @@ Xcode > Product > Scheme > Edit Scheme > Run > Options タブ
 | 新しいインポート形式を追加 | `ImportManager.swift` に case 追加 + `XxxImporter.swift` 新規作成 |
 | 課金・プラン購入フロー | `PurchaseManager.swift` / `PlanView.swift` |
 | QR コードの見た目変更 | `QRCodeView.swift` |
-| Share Extension の受け取り処理 | `ShareViewController.swift` |
+| Share Extension の受け取り処理 | `ShareViewController.swift` / `ShareTransfer.swift` / `ContentView.swift` |
 | 書籍化レイアウト | `BookPreviewView.swift` / `BookLayoutConfig.swift` |
 | データモデル変更 | `DiaryEntry.swift` / `MediaAttachment.swift`（Codable なので移行注意） |
+
+---
+
+## 9. 最近のエラーと対処メモ
+
+### 9-1. PlanView の `Section` で型推論が崩れる
+
+**症状:**
+- `PlanView.swift` の `Section("書籍化設定") { ... }` で SwiftUI のオーバーロード解決に失敗
+- 代表的なエラー:
+  - `missing argument label 'content:' in call`
+  - `cannot convert value of type 'String' to expected argument type '() -> Content'`
+  - `generic parameter 'Content' could not be inferred`
+
+**原因:**
+- `PlanView` の構成次第で `Section("...") { ... }` の省略形だと型解決が不安定になることがあった
+
+**対処:**
+- 文字列ヘッダの省略形を避け、明示形に統一する
+
+```swift
+Section {
+    ...
+} header: {
+    Text("書籍化設定")
+} footer: {
+    ...
+}
+```
+
+**補足:**
+- `maxPhotosPerEntry` / `maxVideosPerEntry` の Picker は、保存済み override が現在の plan 上限を超えていても UI が壊れないよう、表示値だけ正規化する Binding にしてある
+
+### 9-2. Share Extension は queue 保存失敗時に本体を起動しない
+
+**症状:**
+- App Group queue への保存に失敗しても `diarybook://import` で本体アプリを起動してしまう経路があった
+- その結果、共有データは取り込まれないのにアプリだけ開く
+- 画像共有時は stage 済みファイルが残る可能性があった
+
+**対処:**
+- queue 保存が失敗した場合は本体アプリを起動しない
+- stage 済み画像を削除してから Extension を終了する
+
+### 9-3. `share_extension` を UI 表示ラベルへ変換する
+
+**症状:**
+- `sourceApp = "share_extension"` を追加したあと、一覧画面と書籍化プレビューのラベル変換が未更新だった
+- UI 上で内部値の `share_extension` がそのまま見えていた
+
+**対処:**
+- `share_extension` を正式な入力元として扱い、一覧表示・書籍化表示・関連ドキュメントの表記をそろえる
+
+### 9-4. 署名エラー
+
+**症状:**
+- `Signing for "DiaryApp" requires a development team.`
+- `Signing for "ShareExtension" requires a development team.`
+
+**原因:**
+- `DiaryApp` / `ShareExtension` の Signing 設定に Development Team が未設定
+
+**対処:**
+- Xcode の `Signing & Capabilities` で Development Team を設定する
+- 純粋なコンパイル確認だけなら署名を無効化してビルドする
+
+```bash
+xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -configuration Debug \
+  -destination 'generic/platform=iOS' \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+```
+
+### 9-5. Share Extension 側で共有型が見つからない一時エラー
+
+**症状:**
+- `cannot find 'ShareQueueStore' in scope`
+- `cannot find type 'ShareItem' in scope`
+
+**発生箇所:**
+- `ShareExtension/ShareViewController.swift`
+
+**原因候補:**
+- `Shared/ShareTransfer.swift` を `ShareExtension` ターゲットが正しく参照できていない
+
+**対処:**
+- `Shared/ShareTransfer.swift` が `DiaryApp` と `ShareExtension` の両ターゲットに含まれていることを確認する
+- `project.yml` の `sources` に `Shared` が含まれている状態を維持する
+- ターゲット設定が怪しい場合は `xcodegen generate` で `DiaryApp.xcodeproj` を再生成する
+
+**今回の確定原因:**
+- `project.yml` には `Shared` が含まれていたが、生成済みの `DiaryApp.xcodeproj` が古く、`ShareTransfer.swift` が `ShareExtension` ターゲットに入っていなかった
+
+**今回の解決:**
+- `xcodegen generate` を実行して `.xcodeproj` を再生成
+- 再生成後、`ShareTransfer.swift in Sources` が `DiaryApp` / `ShareExtension` の両方に入ったことを確認
+- その後の署名無効ビルドでコンパイル成功を確認
+
+### 9-6. ビルド確認メモ
+
+- Share 対応の検証を通すため、`PlanView` の `Section` 初期化もあわせて修正が必要だった
+- `xcodegen generate` 後、一時 build directory を使った `xcodebuild` で `DiaryApp` target のビルド成功を確認済み
+- 検索・絞り込み追加自体に起因するコンパイルエラーは確認されていない

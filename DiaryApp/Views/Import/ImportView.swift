@@ -2,7 +2,7 @@
 // Provides three import paths:
 //   1. File picker → JSON / CSV / ZIP
 //   2. Plain text paste → TextImporter
-//   3. (Future) Share extension
+//   3. Share extension → App Group queue → app launch import
 //
 // All paths funnel through ImportManager → store.importEntries().
 
@@ -109,14 +109,17 @@ struct ImportView: View {
 
     private var futureSection: some View {
         Section {
-            Label("共有シートからの受け取り（今後対応）", systemImage: "square.and.arrow.up")
+            Label("共有シートからの受け取り（対応済み）", systemImage: "square.and.arrow.up")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text("他アプリから共有したテキスト・URL・画像は Share Extension 経由で本体アプリに取り込まれます。")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             Label("iOSジャーナル・他アプリ専用パーサー（今後対応）", systemImage: "app.badge")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         } header: {
-            Text("今後の予定")
+            Text("共有・今後の予定")
         }
     }
 

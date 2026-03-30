@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		05D06308A7917676BC89F215 /* ShareTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE7E77CBBB6CA5C2E01C0BF /* ShareTransfer.swift */; };
 		0CA6FD4D8D3EC8FCD79551E2 /* MediaAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFC6470AF97EE58BBCE14FD8 /* MediaAttachment.swift */; };
 		0D2AF4F9647A478DF03A97A2 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 0A86FF80F64F56D992CC706B /* Products.storekit */; };
 		1B0906CF979BE1097383149E /* PDFImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1197F5F9E5B55666DA90108 /* PDFImporter.swift */; };
@@ -19,6 +20,7 @@
 		5C49D1358D5EBBBF35F1ED97 /* ImportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C48103CEE2F0B35F2BC6A35 /* ImportManager.swift */; };
 		61AB283CAB07F62E57A3B3AD /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC8B5D9CAF906CE058E7B86 /* ShareViewController.swift */; };
 		8049AB2B03406F90BE134ECD /* BookPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510EADCED7A650D0729217E6 /* BookPreviewView.swift */; };
+		80ABD36E3FFDF7EA35B113ED /* ShareTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAE7E77CBBB6CA5C2E01C0BF /* ShareTransfer.swift */; };
 		85A827F92CD0F7B1DBC5B34A /* UserPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A2DF416DF335E9CE8D1A68F /* UserPlan.swift */; };
 		8B5D4402FFF74719997C86F5 /* PlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73223D5C423F39F7763C0A1E /* PlanView.swift */; };
 		902C59DAAB4D2B86AFCE482E /* DiaryEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7681145F58F805F8B4DA2E7D /* DiaryEntry.swift */; };
@@ -66,9 +68,11 @@
 		1490217336AAC745F2B84E04 /* DiaryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryListView.swift; sourceTree = "<group>"; };
 		2680231459F95B5C5A11BEC1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		291421D298EEFAFA8F677DBA /* DiaryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryStore.swift; sourceTree = "<group>"; };
+		2EE0EC1EFA3DDB7851E916B0 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
 		2FA4FAFCF34B63C6AF92AAEC /* DiaryApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DiaryApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		32F8A6A1C3658C138386B603 /* DiaryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryDetailView.swift; sourceTree = "<group>"; };
 		3CC72AC6509D5AE6BBA566AA /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
+		41BC89AFF3CA67D97BDA196E /* DiaryApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DiaryApp.entitlements; sourceTree = "<group>"; };
 		42BB9B0B16AF33F6DDA377A3 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		4DC8B5D9CAF906CE058E7B86 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		510EADCED7A650D0729217E6 /* BookPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookPreviewView.swift; sourceTree = "<group>"; };
@@ -86,6 +90,7 @@
 		E1197F5F9E5B55666DA90108 /* PDFImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFImporter.swift; sourceTree = "<group>"; };
 		F4541DAE5DB4DB303272E4DE /* QRCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeView.swift; sourceTree = "<group>"; };
 		F644F958B1979446C83A20D5 /* DiaryApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryApp.swift; sourceTree = "<group>"; };
+		FAE7E77CBBB6CA5C2E01C0BF /* ShareTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareTransfer.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -104,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				0ECB548BA206D86362E27626 /* DiaryApp */,
+				831B76B1D2AE620624754A20 /* Shared */,
 				4288F0BAF3CF867B2D30D602 /* ShareExtension */,
 				3C3628450A244EEEEC034B89 /* Products */,
 			);
@@ -112,6 +118,7 @@
 		0ECB548BA206D86362E27626 /* DiaryApp */ = {
 			isa = PBXGroup;
 			children = (
+				41BC89AFF3CA67D97BDA196E /* DiaryApp.entitlements */,
 				F644F958B1979446C83A20D5 /* DiaryApp.swift */,
 				2680231459F95B5C5A11BEC1 /* Info.plist */,
 				0A86FF80F64F56D992CC706B /* Products.storekit */,
@@ -179,6 +186,7 @@
 			isa = PBXGroup;
 			children = (
 				05A6308AEBCF0C20251B548D /* Info.plist */,
+				2EE0EC1EFA3DDB7851E916B0 /* ShareExtension.entitlements */,
 				4DC8B5D9CAF906CE058E7B86 /* ShareViewController.swift */,
 			);
 			path = ShareExtension;
@@ -206,6 +214,14 @@
 				3CC72AC6509D5AE6BBA566AA /* PurchaseManager.swift */,
 			);
 			path = Purchases;
+			sourceTree = "<group>";
+		};
+		831B76B1D2AE620624754A20 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				FAE7E77CBBB6CA5C2E01C0BF /* ShareTransfer.swift */,
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		9866CBCE447FD5C696D81E34 /* Import */ = {
@@ -355,6 +371,7 @@
 				8B5D4402FFF74719997C86F5 /* PlanView.swift in Sources */,
 				CA2B74EEE156663706A87249 /* PurchaseManager.swift in Sources */,
 				DAB4E819D39C6B421BB89B4E /* QRCodeView.swift in Sources */,
+				05D06308A7917676BC89F215 /* ShareTransfer.swift in Sources */,
 				22B514C44E7C47B3C5EF0948 /* TextImporter.swift in Sources */,
 				85A827F92CD0F7B1DBC5B34A /* UserPlan.swift in Sources */,
 				F7122E82327E443319CE3605 /* ZIPImporter.swift in Sources */,
@@ -365,6 +382,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				80ABD36E3FFDF7EA35B113ED /* ShareTransfer.swift in Sources */,
 				61AB283CAB07F62E57A3B3AD /* ShareViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -384,6 +402,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = DiaryApp/DiaryApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				INFOPLIST_FILE = DiaryApp/Info.plist;
@@ -457,6 +476,7 @@
 		7E23A5B4E114D9EA6F626A6B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -475,6 +495,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = DiaryApp/DiaryApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = DiaryApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -492,6 +513,7 @@
 		BE7D2E4797815969014A2A9B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExtension/ShareExtension.entitlements;
 				INFOPLIST_FILE = ShareExtension/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

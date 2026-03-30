@@ -80,6 +80,41 @@ final class DiaryStore: ObservableObject {
         saveEntries()
     }
 
+    func importQueuedSharedEntriesIfNeeded() {
+        let queueStore = ShareQueueStore()
+
+        do {
+            let payloads = try queueStore.loadQueue()
+            guard !payloads.isEmpty else { return }
+
+            let importedEntries = ImportManager.importSharePayloads(payloads) { [mediaDirectoryURL] stagedFilename, sortOrder in
+                let fileExtension = URL(fileURLWithPath: stagedFilename).pathExtension
+                let filename = [
+                    UUID().uuidString,
+                    fileExtension.isEmpty ? "jpg" : fileExtension
+                ].joined(separator: ".")
+                let destinationURL = mediaDirectoryURL.appendingPathComponent(filename)
+
+                do {
+                    try queueStore.moveStagedImage(named: stagedFilename, to: destinationURL)
+                    return PhotoAttachment(filename: filename, sortOrder: sortOrder)
+                } catch {
+                    print("[DiaryStore] Shared image import failed: \(error)")
+                    try? queueStore.removeStagedImage(named: stagedFilename)
+                    return nil
+                }
+            }
+
+            if !importedEntries.isEmpty {
+                importEntries(importedEntries)
+            }
+
+            try queueStore.clearQueue()
+        } catch {
+            print("[DiaryStore] Shared queue import failed: \(error)")
+        }
+    }
+
     // MARK: - Media: Photos
 
     func saveImageData(_ data: Data, filename: String) {
@@ -119,6 +154,21 @@ final class DiaryStore: ObservableObject {
 
     func effectiveMaxPhotos() -> Int { currentPlan.maxPhotosPerEntry }
     func effectiveMaxVideos() -> Int { currentPlan.maxVideosPerEntry }
+
+    func effectiveBookMaxPhotos() -> Int {
+        let configured = bookLayoutConfig.maxPhotosPerEntry ?? currentPlan.maxPhotosInPrint
+        return max(0, min(configured, currentPlan.maxPhotosInPrint))
+    }
+
+    func effectiveBookMaxVideos() -> Int {
+        let configured = bookLayoutConfig.maxVideosPerEntry ?? currentPlan.maxVideosInPrint
+        return max(0, min(configured, currentPlan.maxVideosInPrint))
+    }
+
+    func setBookLayoutConfig<Value>(_ keyPath: WritableKeyPath<BookLayoutConfig, Value>, to value: Value) {
+        bookLayoutConfig[keyPath: keyPath] = value
+        saveConfig()
+    }
 
     // MARK: - Persistence: Entries
 
@@ -160,7 +210,9 @@ final class DiaryStore: ObservableObject {
 
     func saveConfig() {
         do {
-            let data = try JSONEncoder().encode(bookLayoutConfig)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            let data = try encoder.encode(bookLayoutConfig)
             try data.write(to: configFileURL, options: .atomic)
         } catch {
             print("[DiaryStore] Save config failed: \(error)")

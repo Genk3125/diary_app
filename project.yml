@@ -20,6 +20,7 @@ targets:
     platform: iOS
     sources:
       - path: DiaryApp
+      - path: Shared
     info:
       path: DiaryApp/Info.plist
       properties:
@@ -39,6 +40,7 @@ targets:
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_FILE: DiaryApp/Info.plist
+        CODE_SIGN_ENTITLEMENTS: DiaryApp/DiaryApp.entitlements
       configs:
         Debug:
           DEBUG_INFORMATION_FORMAT: dwarf
@@ -54,6 +56,7 @@ targets:
     platform: iOS
     sources:
       - path: ShareExtension
+      - path: Shared
     info:
       path: ShareExtension/Info.plist
       properties:
@@ -75,3 +78,4 @@ targets:
         SWIFT_VERSION: "5.9"
         TARGETED_DEVICE_FAMILY: "1"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements

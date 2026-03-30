@@ -16,15 +16,35 @@ struct BookLayoutConfig: Codable {
     var maxVideosPerEntry: Int?
     var includeSourceApp: Bool
 
-    enum SortOrder: String, Codable {
+    enum SortOrder: String, Codable, CaseIterable {
         case dateAscending = "date_asc"
         case dateDescending = "date_desc"
+
+        var displayName: String {
+            switch self {
+            case .dateAscending:
+                return "日付昇順"
+            case .dateDescending:
+                return "日付降順"
+            }
+        }
     }
 
-    enum GroupingStyle: String, Codable {
+    enum GroupingStyle: String, Codable, CaseIterable {
         case none = "none"
         case byMonth = "by_month"
         case byYear = "by_year"
+
+        var displayName: String {
+            switch self {
+            case .none:
+                return "なし"
+            case .byMonth:
+                return "月ごと"
+            case .byYear:
+                return "年ごと"
+            }
+        }
     }
 
     init(
