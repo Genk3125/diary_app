@@ -14,7 +14,13 @@ struct DiaryListView: View {
     @State private var attachmentsOnly = false
 
     private var sourceOptions: [String] {
-        Array(Set(store.entries.map(\.sourceApp)))
+        Array(
+            Set(
+                store.entries
+                    .map(\.sourceApp)
+                    .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            )
+        )
             .sorted { DiarySourcePresentation.label(for: $0) < DiarySourcePresentation.label(for: $1) }
     }
 
@@ -73,10 +79,16 @@ struct DiaryListView: View {
     }
 
     private var noResultsDescription: String {
-        if resultSummaryText.isEmpty {
-            return "検索語を変えてもう一度試してください"
+        if !trimmedSearchText.isEmpty && hasActiveFilters {
+            return "検索語または絞り込み条件を変更して、もう一度お試しください"
         }
-        return "条件に一致する日記がありません。条件を変えてもう一度試してください"
+        if !trimmedSearchText.isEmpty {
+            return "検索語を変更して、もう一度お試しください"
+        }
+        if hasActiveFilters {
+            return "絞り込み条件を変更して、もう一度お試しください"
+        }
+        return "条件に一致する日記がありません。もう一度お試しください"
     }
 
     var body: some View {
@@ -89,11 +101,17 @@ struct DiaryListView: View {
                         description: Text("＋ から新規作成、またはインポートタブで取り込んでください")
                     )
                 } else if filteredAndSortedEntries.isEmpty {
-                    ContentUnavailableView(
-                        "該当する日記がありません",
-                        systemImage: "magnifyingglass",
-                        description: Text(noResultsDescription)
-                    )
+                    ContentUnavailableView {
+                        Label("該当する日記がありません", systemImage: "magnifyingglass")
+                    } description: {
+                        Text(noResultsDescription)
+                    } actions: {
+                        if !trimmedSearchText.isEmpty || hasCustomPresentation {
+                            Button("検索・絞り込みをリセット") {
+                                resetSearchAndFilters()
+                            }
+                        }
+                    }
                 } else {
                     List {
                         Section {
@@ -111,8 +129,9 @@ struct DiaryListView: View {
                     }
                 }
             }
+            .regularWidthContent(maxWidth: 860)
             .navigationTitle("日記")
-            .searchable(text: $searchText, prompt: "タイトル・本文・ソース・日付で検索")
+            .searchable(text: $searchText, prompt: "タイトル・本文・ソースで検索")
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if !store.entries.isEmpty {
@@ -128,12 +147,21 @@ struct DiaryListView: View {
             .sheet(isPresented: $showingEditor) {
                 DiaryEditorView(existingEntry: nil)
                     .environmentObject(store)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
 
     private func deleteEntries(at offsets: IndexSet) {
         offsets.map { filteredAndSortedEntries[$0] }.forEach { store.deleteEntry($0) }
+    }
+
+    private func resetSearchAndFilters() {
+        searchText = ""
+        selectedSourceApp = nil
+        sortOrder = .newestFirst
+        attachmentsOnly = false
     }
 
     private var filterMenu: some View {
@@ -182,9 +210,7 @@ struct DiaryListView: View {
             if hasCustomPresentation {
                 Section {
                     Button("絞り込みをリセット") {
-                        selectedSourceApp = nil
-                        sortOrder = .newestFirst
-                        attachmentsOnly = false
+                        resetSearchAndFilters()
                     }
                 }
             }
@@ -315,66 +341,10 @@ private extension DiaryEntry {
     }
 
     private var searchableText: String {
-        (
-            [title, body, sourceApp, sourceDisplayName] +
-            searchableDateTokens
-        )
+        [title, body, sourceApp, sourceDisplayName]
         .map(DiarySearchNormalizer.normalize)
         .joined(separator: "\n")
     }
-
-    private var searchableDateTokens: [String] {
-        let calendar = Calendar.current
-        let year = calendar.component(.year, from: date)
-        let month = calendar.component(.month, from: date)
-        let day = calendar.component(.day, from: date)
-
-        return DiaryDateSearchFormatters.formatters.map { $0.string(from: date) } + [
-            "\(year)",
-            "\(month)/\(day)",
-            "\(month)-\(day)",
-            "\(month)月\(day)日",
-            "\(year)-\(String(format: "%02d", month))",
-            "\(year)/\(String(format: "%02d", month))",
-            "\(year)-\(month)-\(day)",
-            "\(year)/\(month)/\(day)",
-            "\(year)-\(String(format: "%02d", month))-\(String(format: "%02d", day))",
-            "\(year)/\(String(format: "%02d", month))/\(String(format: "%02d", day))"
-        ]
-    }
-}
-
-private enum DiaryDateSearchFormatters {
-    static let formatters: [DateFormatter] = {
-        let calendar = Calendar(identifier: .gregorian)
-
-        let slash = DateFormatter()
-        slash.calendar = calendar
-        slash.locale = Locale(identifier: "ja_JP")
-        slash.dateFormat = "yyyy/MM/dd"
-
-        let slashShort = DateFormatter()
-        slashShort.calendar = calendar
-        slashShort.locale = Locale(identifier: "ja_JP")
-        slashShort.dateFormat = "yyyy/M/d"
-
-        let hyphen = DateFormatter()
-        hyphen.calendar = calendar
-        hyphen.locale = Locale(identifier: "ja_JP")
-        hyphen.dateFormat = "yyyy-MM-dd"
-
-        let hyphenShort = DateFormatter()
-        hyphenShort.calendar = calendar
-        hyphenShort.locale = Locale(identifier: "ja_JP")
-        hyphenShort.dateFormat = "yyyy-M-d"
-
-        let japanese = DateFormatter()
-        japanese.calendar = calendar
-        japanese.locale = Locale(identifier: "ja_JP")
-        japanese.dateFormat = "yyyy年M月d日"
-
-        return [slash, slashShort, hyphen, hyphenShort, japanese]
-    }()
 }
 
 // MARK: - Media badge

@@ -27,7 +27,7 @@ struct ImportView: View {
         .json,
         .commaSeparatedText,
         UTType(filenameExtension: "zip") ?? .data,
-        .pdf,           // PDF import (stub in MVP)
+        .pdf,
     ]
 
     var body: some View {
@@ -37,6 +37,7 @@ struct ImportView: View {
                 textPasteSection
                 futureSection
             }
+            .regularWidthContent(maxWidth: 760)
             .navigationTitle("インポート")
             .fileImporter(
                 isPresented: $showFilePicker,
@@ -79,7 +80,7 @@ struct ImportView: View {
         } header: {
             Text("ファイルから読み込む")
         } footer: {
-            Text("JSON・CSV は日記データとしてパースされます。ZIPはJSONまたはCSVを含む場合に対応予定です。")
+            Text("JSON・CSV は日記データとしてパースされます。ZIP は内部の JSON/CSV を再帰的に取り込みます。")
         }
     }
 

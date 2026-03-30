@@ -1,319 +1,203 @@
-# DiaryBook — プロジェクト全体文脈 & 残作業
+# DiaryBook — リリース前最終整理（2026-03-30）
 
-> **エージェント向け引き継ぎ文書。**
-> このファイルを読めば、何を作っているか・今どこまで動いているか・次に何をすべきかがわかる。
-> コードの詳細は `docs/structure.md`、モジュール依存は `docs/dependency_mapping.md` を参照。
+このドキュメントは、現在の実装を基準に「次に何をやれば出せるか」を明確にするための実行メモです。  
+参照済み: `project.yml` / `docs/structure.md` / `docs/dependency_mapping.md` / ソース一式。
 
----
+## 1. 現在地サマリー
 
-## 1. 何を作っているか
+- アプリ本体・Share Extension を含めて **シミュレータ向けビルド成功**。
+- コア機能（CRUD、添付、各種インポート、書籍プレビュー、PDF出力、StoreKit 2 課金導線）は実装済み。
+- リリースに向けた主要な未完は、**外部設定（Bundle ID / App Group / App Store Connect）** と **最終QA**。
 
-**DiaryBook** は iOS 向けの日記アプリ。主な特徴：
+### 1.1 実機ビルド / Share Extension 受け渡し確認結果（2026-03-30）
 
-- 日記を書いて写真・動画を添付し、**「書籍」として PDF 化・印刷**できる
-- 動画は印刷できないため、**QR コードに変換**して紙の本に埋め込む設計
-- 他アプリのデータ（JSON / CSV / ZIP / PDF / テキスト）を**インポート**して日記に変換できる
-- Free / Pro の**サブスクリプションプラン**で添付枚数に差をつける
+#### 確認済み
 
-**開発方針（重要）：**
-- 認証・DBなどのバックエンド設計は意図的に後回し。デバッグが複雑になるため。
-- 「動くことを最優先」。過剰な抽象化禁止。
-- `@MainActor DiaryStore` を `@EnvironmentObject` として全 View に流す。単一 SourceOfTruth。
+- `project.yml` を更新し、署名・識別子を共通変数化
+  - `CODE_SIGN_STYLE: Automatic`
+  - `DIARY_BUNDLE_ID_PREFIX`
+  - `DIARY_APP_GROUP_IDENTIFIER`
+  - `DIARY_SHARE_URL_SCHEME`
+- `DiaryApp` / `ShareExtension` 両 target に `Application Groups` capability 属性を付与（`xcodegen generate` 後の `project.pbxproj` 反映確認済み）
+- 両 entitlements を `$(DIARY_APP_GROUP_IDENTIFIER)` 参照へ変更
+- `Shared/ShareTransfer.swift` を Info.plist 読み取り方式に変更（App Group / URL scheme のハードコード除去）
+- `ContentView` の `onOpenURL` 判定が `ShareTransferConfig.urlScheme` を参照することを確認
+- ビルド確認:
+  - `xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -destination 'generic/platform=iOS Simulator' -derivedDataPath build/DerivedData-Sim build` 成功
+  - `xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -destination 'generic/platform=iOS' build CODE_SIGNING_ALLOWED=NO` 成功
 
----
+#### 未確認
 
-## 2. 技術スタック
+- Development Team 設定済み状態での実機インストールと起動
+- 実機共有シートからの Text / URL / Image の 3 経路での end-to-end 受け渡し
+- Share Extension 保存後に本体アプリへ戻り、`DiaryEntry` と添付画像が作成されることの実機目視
 
-| 項目 | 内容 |
+#### 手動確認が必要
+
+- `xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -destination 'generic/platform=iOS' build` は以下で失敗:
+  - `Signing for "DiaryApp" requires a development team`
+  - `Signing for "ShareExtension" requires a development team`
+- この環境では `security find-identity -v -p codesigning` が `0 valid identities found` のため、Apple ID / Team / 証明書のローカル設定が未完了
+
+#### 実機確認の最短手順（Xcode）
+
+1. `DiaryApp.xcodeproj` を開く。
+2. `DiaryApp` と `ShareExtension` の Signing & Capabilities で同一 Team を選択し、`Automatically manage signing` を ON にする。
+3. 必要に応じて Build Settings の以下を実値へ変更する。
+   - `DIARY_BUNDLE_ID_PREFIX`
+   - `DIARY_SHARE_URL_SCHEME`
+   - `DIARY_APP_GROUP_IDENTIFIER`（通常は `group.$(DIARY_BUNDLE_ID_PREFIX).diaryapp` のままで可）
+4. Apple Developer portal で App ID（本体/Extension）に同一 App Group を紐付ける。
+5. 実機で `DiaryApp` を1回起動後、共有シートで Text / URL / Image をそれぞれ送信し、日記生成と画像添付を確認する。
+
+#### 問題が残る場合の再現手順と原因候補
+
+- 再現手順:
+  1. Team 未設定状態で `xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -destination 'generic/platform=iOS' build`
+  2. 署名エラーで停止
+- 原因候補:
+  - Development Team 未設定
+  - ローカル証明書未作成（Apple Development identity 不在）
+  - Apple Developer 側で App Group が本体/Extension の両 App ID に未割当
+  - `DIARY_*` 変数の実値と Apple Developer 側 Identifier 不一致
+
+## 2. 実装ステータス（コード根拠付き）
+
+### 2.1 完了済み
+
+| 項目 | 実装箇所 |
 |---|---|
-| 言語 | Swift 5.9 / SwiftUI |
-| 最小 iOS | 17.0 |
-| プロジェクト管理 | xcodegen (`brew install xcodegen && xcodegen generate`) |
-| 外部ライブラリ | ZipFoundation 0.9.20（SPM） |
-| 課金 | StoreKit 2 |
-| 永続化（現状） | `Documents/diary_entries.json`（JSON、ISO 8601） |
-| 永続化（将来） | CloudKit or Supabase（未着手） |
-| メディア保存 | `Documents/media/<UUID>.<ext>` |
-
----
-
-## 3. 現在の実装状況
-
-### ✅ 動いているもの
-
-| 機能 | 実装場所 |
-|---|---|
-| 日記 CRUD・一覧・詳細・編集 | `DiaryListView` / `DiaryDetailView` / `DiaryEditorView` |
-| 写真添付（PhotosPicker、プラン上限付き） | `DiaryEditorView` |
-| 動画添付・再生（AVKit） | `DiaryEditorView` / `VideoPlayerSheet` |
-| JSON / CSV / テキスト インポート | `ImportManager` → 各 Importer |
-| ZIP インポート（ZipFoundation で展開） | `ZIPImporter` |
-| PDF インポート（PDFKit テキスト抽出） | `PDFImporter` |
-| 書籍化プレビュー（月・年グループ） | `BookPreviewView` |
-| PDF 書き出し（UIGraphicsPDFRenderer） | `BookPreviewView` |
-| 書籍レイアウト設定の編集・保存（タイトル / 並び順 / グループ / 反映数） | `PlanView` / `DiaryStore` / `BookPreviewView` |
-| QR コード生成・表示（CoreImage） | `QRCodeView` → `DiaryDetailView` |
-| StoreKit 2 課金ゲート | `PurchaseManager` → `DiaryStore` → `PlanView` |
-| Share Extension（テキスト / URL / 画像 → App Group queue → 本体取り込み） | `ShareViewController` / `ShareTransfer.swift` / `ContentView` / `DiaryStore` |
-
-### ⚠️ 実装済みだが設定が必要なもの（コードは書いた、外部設定が未）
-
-| 機能 | 何が足りないか |
-|---|---|
-| StoreKit 2 本番購入 | App Store Connect で Product ID 登録が必要（後述） |
-
----
-
-## 4. 次にやること（優先順）
-
-### 🔴 A. StoreKit 2 本番設定
-
-**背景：** `PurchaseManager.swift` と `Products.storekit`（ローカルテスト用定義）は実装済み。
-Product ID `com.yourapp.diaryapp.pro.monthly` はコード内で使用済み。
-この ID を App Store Connect で登録すれば、実機・TestFlight で課金が動く。
-
-**手順：**
-1. App Store Connect でアプリを登録（Bundle ID: `com.yourapp.diaryapp`）
-2. 「サブスクリプション」→ 新規グループ作成: `group.diarybook.subscription`
-3. サブスクリプション商品を追加:
-   - Product ID: `com.yourapp.diaryapp.pro.monthly`
-   - 期間: 月次
-   - 価格: 任意（¥600 など）
-4. `project.yml` の `com.yourapp` を実際の Bundle ID prefix に変更 → `xcodegen generate`
-5. **ローカルテスト時:** Xcode > Edit Scheme > Run > Options > StoreKit Configuration → `DiaryApp/Products.storekit` を選択
-
-**関連ファイル：**
-- `DiaryApp/Purchases/PurchaseManager.swift` — StoreKit 2 本体
-- `DiaryApp/Products.storekit` — ローカルサンドボックス定義
-- `DiaryApp/Storage/DiaryStore.swift` — `purchaseManager.$isProActive` を Combine で購読して `currentPlan` を更新
-- `DiaryApp/Views/Settings/PlanView.swift` — 購入 UI
-
----
-
-### ✅ B. Share Extension 受け取りフロー
-
-**対応内容：**
-1. Share Extension でテキスト / URL / 画像を `SharePayload` に正規化し、App Group queue に保存
-2. `diarybook://import` で本体アプリを起動
-3. 本体アプリは起動時と URL 受信時に queue を読み、`ImportManager` で `DiaryEntry` に変換して `DiaryStore.importEntries()` に流す
-4. 画像は App Group の一時領域から本体アプリの `Documents/media/` へ移動して `PhotoAttachment` 化
-
-**関連ファイル：**
-- `Shared/ShareTransfer.swift`
-- `ShareExtension/ShareViewController.swift`
-- `DiaryApp/Views/ContentView.swift`
-- `DiaryApp/Storage/DiaryStore.swift`
-- `DiaryApp/Import/ImportManager.swift`
-
----
-
-### 🟡 C. 認証・アカウント管理（意図的に後回し）
-
-**背景：** 現状はデバイス内ローカル保存のみ。マルチデバイス同期・バックアップには Auth が必要だが、
-早期に導入するとデバッグが複雑になるため、ローカル動作が安定してから着手する方針。
-
-**選択肢（未決定）：**
-- **Sign in with Apple** — App Store 審査で必須になる可能性あり（ソーシャルログインを実装する場合）
-- **Supabase Auth** — メール / OAuth 対応、後述の DB と同一サービスで統一できる
-- **Firebase Auth** — 実績多いが Google 依存
-
-**着手時の影響範囲：**
-- `DiaryStore` の init / save / load を認証済みユーザー ID ベースに変更
-- メディアファイルの保存先もユーザー別に変更
-
----
-
-### 🟡 D. データベース・クラウド同期（意図的に後回し）
-
-**背景：** 現状は `Documents/diary_entries.json` に全エントリをまとめて書き込む。
-エントリが増えると読み書き全件になる点と、マルチデバイス同期がない点が課題。
-
-**選択肢（未決定）：**
-- **CloudKit** — Apple IDだけで動く。Sign in with Apple と相性◎。ただし Android/Web 非対応
-- **Supabase** — PostgreSQL ベース。RLS で行レベル認証。Auth と DB を統一できる
-
-**着手時の変更点：**
-```
-DiaryStore.saveEntries()   → Supabase INSERT / CloudKit record save
-DiaryStore.loadEntries()   → Supabase SELECT / CloudKit fetch
-DiaryStore.deleteEntry()   → Supabase DELETE / CloudKit delete
-DiaryStore.importEntries() → バルク upsert（conflict on id → skip）
-```
-
----
-
-### 🟡 E. 動画クラウドアップロード
-
-**背景：** 動画はローカル `Documents/media/*.mov` に保存されている。
-`VideoAttachment` には `hostedAssetID` / `remoteURL` フィールドがあり、
-クラウドにアップロードされれば `qrCodeTarget` に URL が入り、QR コードが自動生成される（実装済み）。
-アップロードさえ実装すれば QR コードが印刷物に反映される。
-
-**実装場所：** `DiaryStore.saveVideoFile()` の後にアップロード処理を追加し、
-成功したら `VideoAttachment.remoteURL` を書き戻して `DiaryStore.updateEntry()` を呼ぶ。
-
----
-
-## 5. 品質・UX の残作業
-
-| 項目 | 概要 | 関連ファイル |
-|---|---|---|
-| ZIP 内画像の添付 | 現状 JSON/CSV のみ抽出。画像も読んで `PhotoAttachment` に変換する | `ZIPImporter.scanDirectory()` |
-| PDF OCR 対応 | スキャン画像 PDF はテキスト抽出不可。Vision で OCR を追加 | `PDFImporter.swift` |
-| 書籍 PDF のレイアウト強化 | 現状の PDF は基本レイアウトのみ。表紙デザイン、余白、フォントなどの調整余地がある | `BookPreviewView.swift` / `BookLayoutConfig.swift` |
-| 検索・フィルター | 日付・キーワードで絞り込み。`DiaryListView` に検索バー追加 | `DiaryListView.swift` |
-| iPad 対応 | `project.yml` の `TARGETED_DEVICE_FAMILY: "1"` → `"1,2"` + レイアウト調整 | `project.yml` |
-| iCloud Backup 除外 | `Documents/media/` は大容量になるため `.isExcludedFromBackupKey` を設定 | `DiaryStore.setupDirectories()` |
-
----
-
-## 6. 技術的負債
-
-| 項目 | 影響 | 対処 |
-|---|---|---|
-| `@Published entries` の全画面再描画 | エントリ数が多いと重くなる | `id` ベースの差分更新に変更 |
-| 孤立メディアファイル | エントリ削除時に漏れた場合ストレージが増え続ける | 起動時に `diary_entries.json` と `media/` を突合して孤立ファイルを削除 |
-| `BookLayoutConfig` の高度設定不足 | タイトル・並び順・反映数は編集できるが、ページサイズやフォントなどは未対応 | `BookLayoutConfig.swift` / `PlanView.swift` / `BookPreviewView.swift` |
-| `DiaryStore.currentPlan` は `private(set)` | テスト・デバッグ時に外部から plan を変えられない | デバッグ用の `setplan(_:)` メソッドを `#if DEBUG` で追加 |
-
----
-
-## 7. セットアップ手順（新しい環境での再現）
-
-```bash
-# 1. リポジトリ取得後
-cd /Users/kondogenki/diary_app
-
-# 2. xcodegen インストール（初回のみ）
-brew install xcodegen
-
-# 3. プロジェクト生成
-xcodegen generate
-
-# 4. Xcode で開く（SPM パッケージは Xcode が自動解決する）
-open DiaryApp.xcodeproj
-
-# 5. ビルド対象を iPhone Simulator（iOS 17+）に設定してビルド
-# ⚠️ xcodebuild CLI は SPM パッケージを -target 指定だと解決できないため、Xcode GUI からビルド推奨
-```
-
-**StoreKit ローカルテスト有効化（ローカルで課金フローを試す場合）：**
-Xcode > Product > Scheme > Edit Scheme > Run > Options タブ
-→ StoreKit Configuration: `DiaryApp/Products.storekit` を選択
-
----
-
-## 8. ファイル早引き（どこを触ればよいか）
-
-| やりたいこと | 触るファイル |
-|---|---|
-| 日記の保存・読み込みロジック変更 | `DiaryStore.swift` |
-| プラン上限の変更 | `UserPlan.swift` |
-| 新しいインポート形式を追加 | `ImportManager.swift` に case 追加 + `XxxImporter.swift` 新規作成 |
-| 課金・プラン購入フロー | `PurchaseManager.swift` / `PlanView.swift` |
-| QR コードの見た目変更 | `QRCodeView.swift` |
-| Share Extension の受け取り処理 | `ShareViewController.swift` / `ShareTransfer.swift` / `ContentView.swift` |
-| 書籍化レイアウト | `BookPreviewView.swift` / `BookLayoutConfig.swift` |
-| データモデル変更 | `DiaryEntry.swift` / `MediaAttachment.swift`（Codable なので移行注意） |
-
----
-
-## 9. 最近のエラーと対処メモ
-
-### 9-1. PlanView の `Section` で型推論が崩れる
-
-**症状:**
-- `PlanView.swift` の `Section("書籍化設定") { ... }` で SwiftUI のオーバーロード解決に失敗
-- 代表的なエラー:
-  - `missing argument label 'content:' in call`
-  - `cannot convert value of type 'String' to expected argument type '() -> Content'`
-  - `generic parameter 'Content' could not be inferred`
-
-**原因:**
-- `PlanView` の構成次第で `Section("...") { ... }` の省略形だと型解決が不安定になることがあった
-
-**対処:**
-- 文字列ヘッダの省略形を避け、明示形に統一する
-
-```swift
-Section {
-    ...
-} header: {
-    Text("書籍化設定")
-} footer: {
-    ...
-}
-```
-
-**補足:**
-- `maxPhotosPerEntry` / `maxVideosPerEntry` の Picker は、保存済み override が現在の plan 上限を超えていても UI が壊れないよう、表示値だけ正規化する Binding にしてある
-
-### 9-2. Share Extension は queue 保存失敗時に本体を起動しない
-
-**症状:**
-- App Group queue への保存に失敗しても `diarybook://import` で本体アプリを起動してしまう経路があった
-- その結果、共有データは取り込まれないのにアプリだけ開く
-- 画像共有時は stage 済みファイルが残る可能性があった
-
-**対処:**
-- queue 保存が失敗した場合は本体アプリを起動しない
-- stage 済み画像を削除してから Extension を終了する
-
-### 9-3. `share_extension` を UI 表示ラベルへ変換する
-
-**症状:**
-- `sourceApp = "share_extension"` を追加したあと、一覧画面と書籍化プレビューのラベル変換が未更新だった
-- UI 上で内部値の `share_extension` がそのまま見えていた
-
-**対処:**
-- `share_extension` を正式な入力元として扱い、一覧表示・書籍化表示・関連ドキュメントの表記をそろえる
-
-### 9-4. 署名エラー
-
-**症状:**
-- `Signing for "DiaryApp" requires a development team.`
-- `Signing for "ShareExtension" requires a development team.`
-
-**原因:**
-- `DiaryApp` / `ShareExtension` の Signing 設定に Development Team が未設定
-
-**対処:**
-- Xcode の `Signing & Capabilities` で Development Team を設定する
-- 純粋なコンパイル確認だけなら署名を無効化してビルドする
+| 日記 CRUD（作成・編集・削除・一覧・詳細） | `DiaryApp/Views/DiaryList/DiaryListView.swift`, `DiaryApp/Views/DiaryDetail/DiaryDetailView.swift`, `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift`, `DiaryApp/Storage/DiaryStore.swift` |
+| 一覧検索・絞り込み（タイトル/本文/source、sourceフィルタ、添付ありのみ、並び順、空状態） | `DiaryApp/Views/DiaryList/DiaryListView.swift` |
+| 写真添付（プラン上限） | `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift`, `DiaryApp/Models/UserPlan.swift` |
+| 動画添付・再生（AVKit） | `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift`, `DiaryApp/Views/DiaryDetail/DiaryDetailView.swift`, `DiaryApp/Storage/DiaryStore.swift` |
+| JSON / CSV / ZIP / PDF / テキスト取り込み | `DiaryApp/Import/ImportManager.swift` + 各 Importer |
+| Share Extension（テキスト / URL / 画像）→ App Group queue → 本体取り込み | `ShareExtension/ShareViewController.swift`, `Shared/ShareTransfer.swift`, `DiaryApp/Views/ContentView.swift`, `DiaryApp/Storage/DiaryStore.swift` |
+| 書籍化プレビュー（並び順・グループ・反映上限） | `DiaryApp/Views/BookPreview/BookPreviewView.swift`, `DiaryApp/Models/BookLayoutConfig.swift`, `DiaryApp/Views/Settings/PlanView.swift` |
+| PDF出力（A4描画 + 共有シート） | `DiaryApp/Views/BookPreview/BookPreviewView.swift` |
+| 書籍PDFレイアウト改善（表紙/見出し/余白/画像配置/出典/警告） | `DiaryApp/Views/BookPreview/BookPreviewView.swift` |
+| StoreKit 2 課金導線（商品取得・購入・復元・状態反映） | `DiaryApp/Purchases/PurchaseManager.swift`, `DiaryApp/Views/Settings/PlanView.swift`, `DiaryApp/Storage/DiaryStore.swift` |
+| QRコード生成（動画URL/AssetID向け） | `DiaryApp/Views/DiaryDetail/QRCodeView.swift`, `DiaryApp/Models/MediaAttachment.swift` |
+| iPad 対応（ターゲット追加 + 主要画面の横幅/Sheet調整） | `project.yml`, `DiaryApp/Views/AdaptiveLayout.swift`, `DiaryApp/Views/ContentView.swift`, `DiaryApp/Views/DiaryList/DiaryListView.swift`, `DiaryApp/Views/DiaryDetail/DiaryDetailView.swift`, `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift`, `DiaryApp/Views/Import/ImportView.swift`, `DiaryApp/Views/BookPreview/BookPreviewView.swift`, `DiaryApp/Views/Settings/PlanView.swift` |
+| `media/` のiCloudバックアップ除外・孤立ファイル整理 | `DiaryApp/Storage/DiaryStore.swift`（`applyBackupExclusion` / `cleanupOrphanedMediaFilesIfSafe`） |
+
+### 2.2 未完（実装タスク）
+
+| 優先 | 項目 | 現状 | 対応箇所 |
+|---|---|---|---|
+| P1 | 動画のクラウドアップロード | `VideoAttachment.remoteURL` / `hostedAssetID` は用意済みだが、アップロード処理なし | `DiaryApp/Storage/DiaryStore.swift`, `DiaryApp/Models/MediaAttachment.swift` |
+| P1 | ZIP内画像の取り込み | ZIPはJSON/CSVのみ再帰取り込み | `DiaryApp/Import/ZIPImporter.swift` |
+| P1 | PDF OCR | テキスト抽出のみ（スキャンPDF非対応） | `DiaryApp/Import/PDFImporter.swift` |
+| P2 | iPad 実機 QA（未確認挙動の確認） | ターゲット追加と主要画面の崩れ対策は実装済み。実機で回転・マルチウィンドウ・共有シート表示を最終確認する | `DiaryApp/Views/ContentView.swift`, `DiaryApp/Views/DiaryList/DiaryListView.swift`, `DiaryApp/Views/DiaryDetail/DiaryDetailView.swift`, `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift`, `DiaryApp/Views/Import/ImportView.swift`, `DiaryApp/Views/BookPreview/BookPreviewView.swift`, `DiaryApp/Views/Settings/PlanView.swift` |
+
+### 2.3 外部設定待ち（コードはあるが環境設定が必要）
+
+| 優先 | 項目 | 必要作業 | 関連箇所 |
+|---|---|---|---|
+| P0 | Bundle ID / App Group の実ID化 | `DIARY_BUNDLE_ID_PREFIX` と `DIARY_SHARE_URL_SCHEME` を実運用値に変更（`DIARY_APP_GROUP_IDENTIFIER` は既定で prefix から導出）。Apple Developer 側 Identifier と一致させる | `project.yml`, `DiaryApp/DiaryApp.entitlements`, `ShareExtension/ShareExtension.entitlements`, `DiaryApp/Info.plist`, `ShareExtension/Info.plist` |
+| P0 | StoreKit本番商品設定 | App Store Connect で `com.yourapp.diaryapp.pro.monthly` を登録（または実IDに置換） | `DiaryApp/Purchases/PurchaseManager.swift`, `DiaryApp/Products.storekit` |
+| P0 | Appアイコンアセット | `ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon` 設定はあるが `.xcassets` がリポジトリに未配置 | Xcode Asset Catalog（新規追加） |
+
+## 3. リリースまでの実行順（最短）
+
+1. `project.yml` の `DIARY_BUNDLE_ID_PREFIX` / `DIARY_SHARE_URL_SCHEME` を実運用値へ変更（必要なら `DIARY_APP_GROUP_IDENTIFIER` を明示上書き）。
+2. `xcodegen generate` を実行してプロジェクト再生成。
+3. Apple Developer / App Store Connect 側で App ID, App Group, サブスクリプション商品を作成。
+4. 実機で以下を通し確認: 新規作成、写真/動画添付、各種インポート、Share Extension 取り込み、PDF出力、購入/復元。
+5. App icon / メタデータを埋め、Archive + TestFlight 配布。
+
+## 4. リリース前最終チェックリスト
+
+### 4.1 コード・ビルド
+
+- [x] `xcodebuild` で `DiaryApp` スキームがビルド成功
+- [x] Share Extension を含めてビルドされる
+- [ ] 実運用 Bundle ID / App Group へ置換済み
+- [ ] App icon (`AppIcon`) を配置済み
+
+### 4.2 機能確認
+
+- [ ] 日記 CRUD（本文なし/あり、編集、削除）
+- [ ] 写真・動画添付の上限挙動（Free/Pro）
+- [ ] JSON / CSV / ZIP / PDF / テキスト取り込み
+- [ ] Share Extension からのテキスト・URL・画像取り込み
+- [ ] 書籍プレビューの並び順・グループ・反映上限
+- [ ] PDF出力と共有シート起動
+- [ ] iPad 実機で回転（縦横）・マルチウィンドウ時の主要画面確認
+
+### 4.3 課金・配布設定
+
+- [ ] App Store Connect のサブスクリプション作成
+- [ ] 実機サンドボックスで購入/復元確認
+- [ ] TestFlight で課金導線確認
+
+## 5. ビルド確認ログ（今回）
+
+- 実行日: 2026-03-30
+- 実行コマンド:
 
 ```bash
 xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -configuration Debug \
-  -destination 'generic/platform=iOS' \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.1' \
+  -derivedDataPath build/DerivedData-iPadSupport \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -configuration Debug \
+  -destination 'platform=iOS Simulator,name=iPad Pro 11-inch (M5),OS=26.1' \
+  -derivedDataPath build/DerivedData-iPadSupport \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+xcodebuild -project DiaryApp.xcodeproj -scheme DiaryApp -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' build
 ```
 
-### 9-5. Share Extension 側で共有型が見つからない一時エラー
+- 結果: 上記3コマンドすべて `** BUILD SUCCEEDED **`
+- 追加確認:
+  - `xcodegen generate` 後の署名なし iOS ビルドでも `** BUILD SUCCEEDED **`
+  - iPad 対応に伴って出ていた `All interface orientations must be supported unless the app requires full screen.` 警告は、`UISupportedInterfaceOrientations` / `UISupportedInterfaceOrientations~ipad` を追加して解消
+  - リポジトリ直下の `build/` は生成物のため `.gitignore` で除外
+- 未確認挙動（iPad）:
+  - 実機での `Form` 入力時キーボード挙動
+  - Stage Manager / Split View 時の `TabView` と各 `NavigationStack` の表示密度
+  - `ShareSheet` / 動画再生シートの実機表示サイズ（シミュレータ以外）
 
-**症状:**
-- `cannot find 'ShareQueueStore' in scope`
-- `cannot find type 'ShareItem' in scope`
+## 6. 書籍PDFレイアウト改善の反映整理（2026-03-30）
 
-**発生箇所:**
-- `ShareExtension/ShareViewController.swift`
+### 6.1 今回反映した設定（`BookLayoutConfig`）
 
-**原因候補:**
-- `Shared/ShareTransfer.swift` を `ShareExtension` ターゲットが正しく参照できていない
+| 設定 | 反映内容 |
+|---|---|
+| `title` | 表紙タイトル・本文ページのランニングヘッダに反映 |
+| `subtitle` | 表紙サブタイトルに反映（空文字は非表示） |
+| `sortOrder` | エントリ並び順に反映し、表紙メタにも表示 |
+| `grouping` | PDFセクション分割と見出し帯に反映 |
+| `maxPhotosPerEntry` | 掲載写真数上限に反映（プラン上限でクランプ） |
+| `maxVideosPerEntry` | 掲載動画QR数上限に反映（プラン上限でクランプ） |
+| `includeSourceApp` | 各エントリの出典表示ON/OFFと表紙メタに反映 |
 
-**対処:**
-- `Shared/ShareTransfer.swift` が `DiaryApp` と `ShareExtension` の両ターゲットに含まれていることを確認する
-- `project.yml` の `sources` に `Shared` が含まれている状態を維持する
-- ターゲット設定が怪しい場合は `xcodegen generate` で `DiaryApp.xcodeproj` を再生成する
+### 6.2 レイアウト改善ポイント（PDF/プレビュー整合）
 
-**今回の確定原因:**
-- `project.yml` には `Shared` が含まれていたが、生成済みの `DiaryApp.xcodeproj` が古く、`ShareTransfer.swift` が `ShareExtension` ターゲットに入っていなかった
+- PDFの表紙を独立ページ化し、タイトル/サブタイトル/設定メタを再配置
+- セクション見出しを帯スタイルに変更して月/年区切りを明確化
+- 本文をカードレイアウト化し、内側余白・行間・情報階層を整理
+- 写真と動画QRをグリッド配置に変更し、複数添付時の崩れを抑制
+- 出典表記と警告表記をプレビュー/PDFで統一（出典行 + 警告ボックス）
 
-**今回の解決:**
-- `xcodegen generate` を実行して `.xcodeproj` を再生成
-- 再生成後、`ShareTransfer.swift in Sources` が `DiaryApp` / `ShareExtension` の両方に入ったことを確認
-- その後の署名無効ビルドでコンパイル成功を確認
+### 6.3 まだ未対応の高度設定
 
-### 9-6. ビルド確認メモ
+- ページサイズ切替（A4以外）
+- フォントファミリ/文字サイズ/行間のユーザー設定
+- 表紙テーマ（色・装飾・レイアウトプリセット）の切替
+- 画像グリッド列数・サムネイルサイズのユーザー設定
+- セクション見出し/警告スタイルの詳細カスタマイズ
 
-- Share 対応の検証を通すため、`PlanView` の `Section` 初期化もあわせて修正が必要だった
-- `xcodegen generate` 後、一時 build directory を使った `xcodebuild` で `DiaryApp` target のビルド成功を確認済み
-- 検索・絞り込み追加自体に起因するコンパイルエラーは確認されていない
+### 6.4 補足
+
+- 今回は既存設定の反映範囲拡大を優先し、`BookLayoutConfig` の項目追加は実施しなかった（互換性維持）。
+- 写真/動画上限は `DiaryStore.effectiveBookMaxPhotos/MaxVideos` を継続利用し、`currentPlan` 上限との整合を維持。
+
+## 7. ドキュメント同期ルール
+
+- 実装済み項目は TODO に残さない。
+- TODO に追加する項目は、必ず「対応箇所（ファイル）」を併記する。
+- 仕様変更時は `docs/structure.md` と `docs/dependency_mapping.md` を同時更新する。

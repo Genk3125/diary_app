@@ -9,10 +9,17 @@ options:
   defaultConfig: Debug
   xcodeVersion: "15.0"
 
+settings:
+  base:
+    CODE_SIGN_STYLE: Automatic
+    DIARY_BUNDLE_ID_PREFIX: com.yourapp
+    DIARY_APP_GROUP_IDENTIFIER: group.$(DIARY_BUNDLE_ID_PREFIX).diaryapp
+    DIARY_SHARE_URL_SCHEME: diarybook
+
 packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation.git
-    from: "0.9.19"
+    from: "0.9.20"
 
 targets:
   DiaryApp:
@@ -25,20 +32,35 @@ targets:
       path: DiaryApp/Info.plist
       properties:
         CFBundleDisplayName: DiaryBook
+        DiaryShareAppGroupID: $(DIARY_APP_GROUP_IDENTIFIER)
+        DiaryShareURLScheme: $(DIARY_SHARE_URL_SCHEME)
         NSPhotoLibraryUsageDescription: "写真・動画を日記に添付するために使用します"
         NSPhotoLibraryAddUsageDescription: "日記の写真を保存するために使用します"
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         CFBundleURLTypes:
-          - CFBundleURLName: com.yourapp.diaryapp
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER)
             CFBundleURLSchemes:
-              - diarybook
+              - $(DIARY_SHARE_URL_SCHEME)
+    attributes:
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.yourapp.diaryapp
+        PRODUCT_BUNDLE_IDENTIFIER: $(DIARY_BUNDLE_ID_PREFIX).diaryapp
         SWIFT_VERSION: "5.9"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         INFOPLIST_FILE: DiaryApp/Info.plist
         CODE_SIGN_ENTITLEMENTS: DiaryApp/DiaryApp.entitlements
       configs:
@@ -61,6 +83,8 @@ targets:
       path: ShareExtension/Info.plist
       properties:
         CFBundleDisplayName: DiaryBookに保存
+        DiaryShareAppGroupID: $(DIARY_APP_GROUP_IDENTIFIER)
+        DiaryShareURLScheme: $(DIARY_SHARE_URL_SCHEME)
         NSExtension:
           NSExtensionAttributes:
             NSExtensionActivationRule:
@@ -72,10 +96,14 @@ targets:
               - Image
           NSExtensionPointIdentifier: com.apple.share-services
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+    attributes:
+      SystemCapabilities:
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.yourapp.diaryapp.shareextension
+        PRODUCT_BUNDLE_IDENTIFIER: $(DIARY_BUNDLE_ID_PREFIX).diaryapp.shareextension
         SWIFT_VERSION: "5.9"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         CODE_SIGN_ENTITLEMENTS: ShareExtension/ShareExtension.entitlements

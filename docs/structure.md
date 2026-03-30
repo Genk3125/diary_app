@@ -1,166 +1,145 @@
-# DiaryBook — アーキテクチャ概要
+# DiaryBook — アーキテクチャ概要（現行実装）
 
-> vibe coding エージェント向け早見表。初めてこのコードを触る人はここから読んでください。
+このファイルは、初見でコードを追うための最短ガイドです。
 
----
+## 1. 実装範囲（MVP）
 
-## 1. MVP 要件まとめ
-
-| カテゴリ | 実装状況 |
+| カテゴリ | 状態 |
 |---|---|
-| 日記の作成・編集・削除・一覧 | ✅ 実装済 |
-| 画像添付（プラン上限付き） | ✅ 実装済 |
-| 動画添付（QRコード前提で保持） | ✅ 実装済 |
-| 動画再生（AVPlayerViewController） | ✅ 実装済 |
-| JSON インポート | ✅ 実装済 |
-| CSV インポート | ✅ 実装済 |
-| テキスト貼り付けインポート | ✅ 実装済 |
-| ZIP インポート | ✅ 実装済（ZipFoundation 0.9.20） |
-| PDF インポート | ✅ 実装済（PDFKit テキスト抽出） |
-| 書籍化プレビュー（月・年グループ） | ✅ 実装済 |
-| PDF 書き出し（A4・UIGraphicsPDFRenderer） | ✅ 実装済 |
-| プラン管理 / StoreKit 2 課金ゲート | ✅ 実装済（App Store Connect 登録は別途） |
-| QR コード生成（CoreImage） | ✅ 実装済 |
-| Share Extension | ✅ 実装済（テキスト / URL / 画像を App Group 経由で本体へ取り込み） |
-
----
+| 日記の作成・編集・削除・一覧・詳細 | ✅ 実装済み |
+| 検索・絞り込み（タイトル/本文/source、添付あり、並び順） | ✅ 実装済み |
+| 画像添付（プラン上限） | ✅ 実装済み |
+| 動画添付・再生（AVPlayer） | ✅ 実装済み |
+| JSON / CSV / ZIP / PDF / テキスト インポート | ✅ 実装済み |
+| Share Extension（テキスト/URL/画像） | ✅ 実装済み |
+| 書籍化プレビュー（月/年グループ、上限反映） | ✅ 実装済み |
+| PDF書き出し（A4） | ✅ 実装済み |
+| StoreKit 2 課金導線（購入・復元・反映） | ✅ 実装済み |
+| `media/` バックアップ除外・孤立ファイル掃除 | ✅ 実装済み |
+| 動画クラウドアップロード | ⏳ 未実装 |
+| PDF OCR（スキャンPDF） | ⏳ 未実装 |
 
 ## 2. 画面構成
 
-```
+```text
 TabView
-├── 日記タブ (DiaryListView)
-│   ├── NavigationLink → DiaryDetailView
-│   │   └── Sheet → DiaryEditorView（編集）
-│   └── Sheet → DiaryEditorView（新規作成）
-├── インポートタブ (ImportView)
-├── 書籍化タブ (BookPreviewView)
-└── プランタブ (PlanView)           ← StoreKit 2 課金ゲート
+├── 日記 (DiaryListView)
+│   ├── Detail: DiaryDetailView
+│   │   └── 編集Sheet: DiaryEditorView
+│   └── 新規Sheet: DiaryEditorView
+├── インポート (ImportView)
+├── 書籍化 (BookPreviewView)
+└── プラン (PlanView)
 
-Share Extension (ShareViewController) — 外部アプリから受け取りシート
+Share Extension
+└── ShareViewController
+    └── App Group queue に保存 → diarybook://import で本体起動
 ```
-
----
 
 ## 3. ディレクトリ構成
 
-```
+```text
 diary_app/
-├── project.yml                  # xcodegen 定義 (brew install xcodegen && xcodegen generate)
-├── Shared/
-│   └── ShareTransfer.swift      # App Group queue / payload の共通定義
+├── project.yml
 ├── docs/
-│   ├── structure.md             # このファイル
-│   └── dependency_mapping.md   # モジュール依存関係
+│   ├── TODO.md
+│   ├── structure.md
+│   └── dependency_mapping.md
+├── Shared/
+│   └── ShareTransfer.swift
+├── ShareExtension/
+│   ├── ShareViewController.swift
+│   ├── Info.plist
+│   └── ShareExtension.entitlements
 └── DiaryApp/
-    ├── DiaryApp.swift           # @main エントリポイント
-    ├── Info.plist               # 権限宣言（写真ライブラリ）
-    ├── DiaryApp.entitlements    # App Group entitlement
+    ├── DiaryApp.swift
+    ├── Info.plist
+    ├── DiaryApp.entitlements
+    ├── Products.storekit
     ├── Models/
-    │   ├── DiaryEntry.swift     # コアデータモデル（Codable）
-    │   ├── MediaAttachment.swift # PhotoAttachment / VideoAttachment
-    │   ├── UserPlan.swift       # Free / Pro プラン enum
-    │   └── BookLayoutConfig.swift # 書籍レイアウト設定
+    │   ├── DiaryEntry.swift
+    │   ├── MediaAttachment.swift
+    │   ├── UserPlan.swift
+    │   └── BookLayoutConfig.swift
     ├── Storage/
-    │   └── DiaryStore.swift     # ObservableObject / JSON 永続化
+    │   └── DiaryStore.swift
     ├── Import/
-    │   ├── ImportManager.swift  # ルーター
+    │   ├── ImportManager.swift
     │   ├── JSONImporter.swift
     │   ├── CSVImporter.swift
-    │   ├── ZIPImporter.swift    # ZipFoundation 0.9.20 で展開
-    │   ├── PDFImporter.swift    # PDFKit テキスト抽出
+    │   ├── ZIPImporter.swift
+    │   ├── PDFImporter.swift
     │   └── TextImporter.swift
     ├── Purchases/
-    │   └── PurchaseManager.swift  # StoreKit 2 / AnyCancellable で DiaryStore に購読状態を伝搬
-    ├── Products.storekit          # ローカルテスト用商品定義
+    │   └── PurchaseManager.swift
     └── Views/
-        ├── ContentView.swift            # TabView ルート（4タブ）/ share import URL 受信
-        ├── DiaryList/
-        │   └── DiaryListView.swift
-        ├── DiaryDetail/
-        │   ├── DiaryDetailView.swift
-        │   └── QRCodeView.swift         # CoreImage QR コード生成
-        ├── DiaryEditor/
-        │   └── DiaryEditorView.swift    # PhotosPicker / VideoFile Transferable
-        ├── Import/
-        │   └── ImportView.swift
-        └── Settings/
-            └── PlanView.swift           # プラン表示・購入・復元 UI
-        ├── BookPreview/
-        │   └── BookPreviewView.swift
-        ...（外部）
-ShareExtension/
-    ├── ShareExtension.entitlements      # App Group entitlement
-    └── ShareViewController.swift        # Share Extension（App Group queue に保存して本体を起動）
+        ├── AdaptiveLayout.swift
+        ├── ContentView.swift
+        ├── DiaryList/DiaryListView.swift
+        ├── DiaryDetail/{DiaryDetailView.swift, QRCodeView.swift}
+        ├── DiaryEditor/DiaryEditorView.swift
+        ├── Import/ImportView.swift
+        ├── BookPreview/BookPreviewView.swift
+        └── Settings/PlanView.swift
 ```
 
----
-
-## 4. データモデル（内部共通形式）
+## 4. モデル要点
 
 ```swift
 DiaryEntry {
-  id:        UUID
-  date:      Date
-  title:     String
-  body:      String
-  photos:    [PhotoAttachment]   // filename → Documents/media/*.jpg
-  videos:    [VideoAttachment]   // filename → Documents/media/*.mov / hostedAssetID
-  sourceApp: String              // "manual" | "json_import" | "csv_import" ...
-  metadata:  [String: String]    // 元データの追加フィールドを保持
+  id: UUID
+  date: Date
+  title: String
+  body: String
+  photos: [PhotoAttachment]      // media/<uuid>.jpg
+  videos: [VideoAttachment]      // media/<uuid>.mov / remoteURL
+  sourceApp: String              // manual / json_import / ... / share_extension
+  metadata: [String: String]
   createdAt: Date
   updatedAt: Date
 }
 ```
 
-永続化先: `Documents/diary_entries.json`（ISO 8601 日付）
-メディア:  `Documents/media/<UUID>.<ext>`
+永続化:
+- エントリ: `Documents/diary_entries.json`（ISO 8601）
+- 書籍設定: `Documents/book_config.json`
+- メディア: `Documents/media/`
+  - `DiaryStore` で `.isExcludedFromBackup` を付与
+  - 起動時に孤立メディアをクリーンアップ
 
----
+## 5. 主要フロー
 
-## 5. プラン制限の流れ
+### 5.1 日記作成・編集
 
-```
-UserPlan.maxPhotosPerEntry
-    ↓ DiaryStore.effectiveMaxPhotos()
-    ↓ DiaryEditorView（入力制限）
-    ↓ BookPreviewView（印刷反映枚数ウォーニング）
-```
+`DiaryEditorView` → `DiaryStore.addEntry/updateEntry` → JSON保存 → 一覧再描画
 
-Free: 写真1・動画1 / Pro: 写真3・動画3
-印刷時上限 = デジタル上限（`maxPhotosInPrint` / `maxVideosInPrint`）
+### 5.2 インポート
 
----
+`ImportView` → `ImportManager` → 各Importer → `[DiaryEntry]` → `DiaryStore.importEntries`
 
-## 6. Xcode プロジェクトのセットアップ
+### 5.3 Share Extension
+
+`ShareViewController` → `ShareQueueStore.append` → `diarybook://import` → `ContentView.onOpenURL/.task` → `DiaryStore.importQueuedSharedEntriesIfNeeded`
+
+### 5.4 書籍化・PDF
+
+`BookPreviewView` が `BookLayoutConfig` と `DiaryStore` を参照してプレビュー表示。  
+`exportPDF()` で A4 PDF を生成し共有シートへ渡す。
+
+## 6. セットアップ
 
 ```bash
-# xcodegen のインストール（初回のみ）
-brew install xcodegen
-
-# プロジェクト生成
-cd diary_app
+cd /Users/kondogenki/diary_app
+brew install xcodegen   # 未導入時のみ
 xcodegen generate
-
-# Xcode で開く
 open DiaryApp.xcodeproj
 ```
 
-または Xcode で「New Project → iOS App」を作成し、`DiaryApp/` 以下の Swift ファイルをすべて追加してください。
+ローカル課金テスト:
+- Xcode > Edit Scheme > Run > Options
+- StoreKit Configuration に `DiaryApp/Products.storekit` を指定
 
----
+## 7. 補足
 
-## 7. 動画対応メモ
-
-- 動画はローカルファイル（`Documents/media/*.mov`）または `hostedAssetID` / `remoteURL` として保持
-- 印刷時は `VideoAttachment.qrCodeTarget` をQRコードにエンコードする想定
-- TODO: 動画アップロード → `remoteURL` 書き戻し → `filename` を削除してストレージ節約
-
----
-
-## 8. ZIP 対応の有効化手順
-
-1. `project.yml` の `packages:` / `dependencies:` のコメントを外す
-2. `xcodegen generate` を再実行
-3. `ZIPImporter.swift` の `import ZIPFoundation` コメントを外す
-4. `importEntries(from:)` の extraction ブロックのコメントを外す
+- ZIPFoundation は `project.yml` の SPM 依存で有効化済み。
+- バンドルID/App Group は `com.yourapp...` のプレースホルダ。リリース前に実IDへ差し替え必須。

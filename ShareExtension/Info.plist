@@ -20,6 +20,10 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>DiaryShareAppGroupID</key>
+	<string>$(DIARY_APP_GROUP_IDENTIFIER)</string>
+	<key>DiaryShareURLScheme</key>
+	<string>$(DIARY_SHARE_URL_SCHEME)</string>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

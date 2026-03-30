@@ -8,12 +8,19 @@ import Combine
 
 @MainActor
 final class DiaryStore: ObservableObject {
+    private enum EntriesLoadState {
+        case missing
+        case loaded
+        case failed
+    }
+
     @Published var entries: [DiaryEntry] = []
     @Published private(set) var currentPlan: UserPlan = .free
     @Published var bookLayoutConfig: BookLayoutConfig = BookLayoutConfig()
 
     let purchaseManager = PurchaseManager()
     private var planCancellable: AnyCancellable?
+    private var entriesLoadState: EntriesLoadState = .missing
 
     // MARK: - File paths
 
@@ -33,6 +40,7 @@ final class DiaryStore: ObservableObject {
         setupDirectories()
         loadEntries()
         loadConfig()
+        cleanupOrphanedMediaFilesIfSafe()
 
         // PurchaseManager の isProActive が変わったら currentPlan を同期する
         planCancellable = purchaseManager.$isProActive
@@ -43,7 +51,13 @@ final class DiaryStore: ObservableObject {
     }
 
     private func setupDirectories() {
-        try? FileManager.default.createDirectory(at: mediaDirectoryURL, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: mediaDirectoryURL, withIntermediateDirectories: true)
+            applyBackupExclusion(to: mediaDirectoryURL)
+            enforceBackupExclusionForExistingMediaFiles()
+        } catch {
+            print("[DiaryStore] Create media directory failed: \(error)")
+        }
     }
 
     // MARK: - CRUD
@@ -86,8 +100,9 @@ final class DiaryStore: ObservableObject {
         do {
             let payloads = try queueStore.loadQueue()
             guard !payloads.isEmpty else { return }
+            let stagedImageFilenames = stagedImageFilenames(from: payloads)
 
-            let importedEntries = ImportManager.importSharePayloads(payloads) { [mediaDirectoryURL] stagedFilename, sortOrder in
+            let importedEntries = ImportManager.importSharePayloads(payloads) { stagedFilename, sortOrder in
                 let fileExtension = URL(fileURLWithPath: stagedFilename).pathExtension
                 let filename = [
                     UUID().uuidString,
@@ -97,6 +112,7 @@ final class DiaryStore: ObservableObject {
 
                 do {
                     try queueStore.moveStagedImage(named: stagedFilename, to: destinationURL)
+                    applyBackupExclusion(to: destinationURL)
                     return PhotoAttachment(filename: filename, sortOrder: sortOrder)
                 } catch {
                     print("[DiaryStore] Shared image import failed: \(error)")
@@ -110,6 +126,7 @@ final class DiaryStore: ObservableObject {
             }
 
             try queueStore.clearQueue()
+            cleanupProcessedStagedImages(stagedImageFilenames, queueStore: queueStore)
         } catch {
             print("[DiaryStore] Shared queue import failed: \(error)")
         }
@@ -119,7 +136,12 @@ final class DiaryStore: ObservableObject {
 
     func saveImageData(_ data: Data, filename: String) {
         let url = mediaDirectoryURL.appendingPathComponent(filename)
-        try? data.write(to: url, options: .atomic)
+        do {
+            try data.write(to: url, options: .atomic)
+            applyBackupExclusion(to: url)
+        } catch {
+            print("[DiaryStore] Image save failed: \(error)")
+        }
     }
 
     func loadImageData(filename: String) -> Data? {
@@ -134,6 +156,7 @@ final class DiaryStore: ObservableObject {
         let destURL = mediaDirectoryURL.appendingPathComponent(filename)
         do {
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
+            applyBackupExclusion(to: destURL)
             return filename
         } catch {
             print("[DiaryStore] Video save failed: \(error)")
@@ -173,13 +196,18 @@ final class DiaryStore: ObservableObject {
     // MARK: - Persistence: Entries
 
     private func loadEntries() {
-        guard FileManager.default.fileExists(atPath: entriesFileURL.path) else { return }
+        guard FileManager.default.fileExists(atPath: entriesFileURL.path) else {
+            entriesLoadState = .missing
+            return
+        }
         do {
             let data = try Data(contentsOf: entriesFileURL)
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             entries = try decoder.decode([DiaryEntry].self, from: data)
+            entriesLoadState = .loaded
         } catch {
+            entriesLoadState = .failed
             print("[DiaryStore] Load entries failed: \(error)")
         }
     }
@@ -191,6 +219,7 @@ final class DiaryStore: ObservableObject {
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             let data = try encoder.encode(entries)
             try data.write(to: entriesFileURL, options: .atomic)
+            entriesLoadState = .loaded
         } catch {
             print("[DiaryStore] Save entries failed: \(error)")
         }
@@ -216,6 +245,111 @@ final class DiaryStore: ObservableObject {
             try data.write(to: configFileURL, options: .atomic)
         } catch {
             print("[DiaryStore] Save config failed: \(error)")
+        }
+    }
+
+    private func applyBackupExclusion(to url: URL) {
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        var targetURL = url
+        do {
+            try targetURL.setResourceValues(resourceValues)
+        } catch {
+            print("[DiaryStore] Backup exclusion failed: \(error)")
+        }
+    }
+
+    private func enforceBackupExclusionForExistingMediaFiles() {
+        let resourceKeys: Set<URLResourceKey> = [.isRegularFileKey]
+        do {
+            let fileURLs = try FileManager.default.contentsOfDirectory(
+                at: mediaDirectoryURL,
+                includingPropertiesForKeys: Array(resourceKeys),
+                options: [.skipsHiddenFiles]
+            )
+            for fileURL in fileURLs {
+                let values = try fileURL.resourceValues(forKeys: resourceKeys)
+                guard values.isRegularFile == true else { continue }
+                applyBackupExclusion(to: fileURL)
+            }
+        } catch {
+            print("[DiaryStore] Backup exclusion scan failed: \(error)")
+        }
+    }
+
+    private func cleanupOrphanedMediaFilesIfSafe() {
+        guard entriesLoadState == .loaded else { return }
+
+        let referenced = referencedMediaFilenames()
+        let resourceKeys: Set<URLResourceKey> = [
+            .isRegularFileKey,
+            .isDirectoryKey,
+            .isSymbolicLinkKey
+        ]
+
+        do {
+            let fileURLs = try FileManager.default.contentsOfDirectory(
+                at: mediaDirectoryURL,
+                includingPropertiesForKeys: Array(resourceKeys),
+                options: [.skipsHiddenFiles]
+            )
+
+            for fileURL in fileURLs {
+                let values = try fileURL.resourceValues(forKeys: resourceKeys)
+                guard values.isRegularFile == true else { continue }
+                guard values.isDirectory != true else { continue }
+                guard values.isSymbolicLink != true else { continue }
+                guard !referenced.contains(fileURL.lastPathComponent) else { continue }
+                try? FileManager.default.removeItem(at: fileURL)
+            }
+        } catch {
+            print("[DiaryStore] Orphan media cleanup failed: \(error)")
+        }
+    }
+
+    private func referencedMediaFilenames() -> Set<String> {
+        var filenames = Set<String>()
+
+        for entry in entries {
+            for photo in entry.photos {
+                insertNormalizedFilename(photo.filename, into: &filenames)
+            }
+            for video in entry.videos {
+                if let filename = video.filename {
+                    insertNormalizedFilename(filename, into: &filenames)
+                }
+                if let thumbnailFilename = video.thumbnailFilename {
+                    insertNormalizedFilename(thumbnailFilename, into: &filenames)
+                }
+            }
+        }
+
+        return filenames
+    }
+
+    private func insertNormalizedFilename(_ rawFilename: String, into filenames: inout Set<String>) {
+        let trimmed = rawFilename.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let normalized = URL(fileURLWithPath: trimmed).lastPathComponent
+        guard !normalized.isEmpty else { return }
+        filenames.insert(normalized)
+    }
+
+    private func stagedImageFilenames(from payloads: [SharePayload]) -> Set<String> {
+        var filenames = Set<String>()
+        for payload in payloads {
+            for item in payload.items where item.kind == .image {
+                guard let rawFilename = item.imageFilename else { continue }
+                insertNormalizedFilename(rawFilename, into: &filenames)
+            }
+        }
+        return filenames
+    }
+
+    private func cleanupProcessedStagedImages(_ filenames: Set<String>, queueStore: ShareQueueStore) {
+        guard !filenames.isEmpty else { return }
+        for filename in filenames {
+            try? queueStore.removeStagedImage(named: filename)
         }
     }
 }

@@ -37,6 +37,7 @@ struct DiaryDetailView: View {
                             MetadataView(entry: entry)
                         }
                     }
+                    .regularWidthContent(maxWidth: 860)
                     .padding()
                 }
                 .navigationTitle(entry.title.isEmpty ? "日記" : entry.title)
@@ -45,9 +46,13 @@ struct DiaryDetailView: View {
                 .sheet(isPresented: $showingEditor) {
                     DiaryEditorView(existingEntry: entry)
                         .environmentObject(store)
+                        .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
                 }
                 .sheet(item: $playingVideoItem) { item in
                     VideoPlayerSheet(url: item.url)
+                        .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
                 }
                 .alert("この日記を削除しますか？", isPresented: $showingDeleteAlert) {
                     Button("削除", role: .destructive) {

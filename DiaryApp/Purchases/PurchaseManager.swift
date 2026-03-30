@@ -10,12 +10,19 @@ enum StoreError: LocalizedError {
     case failedVerification
     case purchasePending
     case userCancelled
+    case productNotAvailable
+    case unknownPurchaseResult
+    case restoreFailed(underlying: Error)
 
     var errorDescription: String? {
         switch self {
         case .failedVerification: return "購入の検証に失敗しました"
         case .purchasePending:    return "購入が保留中です（保護者承認などをご確認ください）"
         case .userCancelled:      return nil
+        case .productNotAvailable: return "購入商品を取得できませんでした。しばらくしてから再試行してください。"
+        case .unknownPurchaseResult: return "購入処理の結果を判定できませんでした。時間をおいて再試行してください。"
+        case .restoreFailed(let underlying):
+            return "購入の復元に失敗しました。通信状態をご確認のうえ再試行してください。（\(underlying.localizedDescription)）"
         }
     }
 }
@@ -27,6 +34,7 @@ final class PurchaseManager: ObservableObject {
     @Published private(set) var isProActive = false
     @Published private(set) var isLoading = false
     @Published private(set) var proProduct: Product?
+    @Published private(set) var productLoadError: String?
 
     private var updateListenerTask: Task<Void, Never>?
 
@@ -44,8 +52,17 @@ final class PurchaseManager: ObservableObject {
 
     // MARK: - Public actions
 
+    func refreshProducts() async {
+        await loadProducts()
+    }
+
     func purchase() async throws {
-        guard let product = proProduct else { return }
+        if proProduct == nil {
+            await loadProducts()
+        }
+        guard let product = proProduct else {
+            throw StoreError.productNotAvailable
+        }
         isLoading = true
         defer { isLoading = false }
 
@@ -60,24 +77,34 @@ final class PurchaseManager: ObservableObject {
         case .userCancelled:
             throw StoreError.userCancelled
         @unknown default:
-            break
+            throw StoreError.unknownPurchaseResult
         }
     }
 
-    func restore() async {
+    func restore() async throws {
         isLoading = true
         defer { isLoading = false }
-        try? await AppStore.sync()
-        await updateEntitlements()
+        do {
+            try await AppStore.sync()
+            await updateEntitlements()
+        } catch {
+            throw StoreError.restoreFailed(underlying: error)
+        }
     }
 
     // MARK: - Private
 
     private func loadProducts() async {
+        productLoadError = nil
         do {
             let products = try await Product.products(for: [Self.proMonthlyID])
-            proProduct = products.first
+            proProduct = products.first(where: { $0.id == Self.proMonthlyID })
+            if proProduct == nil {
+                productLoadError = "購入商品が見つかりませんでした。設定をご確認ください。"
+            }
         } catch {
+            proProduct = nil
+            productLoadError = "商品情報を取得できませんでした。通信状態をご確認のうえ再試行してください。"
             print("[PurchaseManager] Product fetch failed: \(error)")
         }
     }
@@ -88,6 +115,8 @@ final class PurchaseManager: ObservableObject {
             if case .verified(let tx) = result,
                tx.productID == Self.proMonthlyID,
                tx.revocationDate == nil {
+                let isNotExpired = tx.expirationDate.map { $0 > Date() } ?? true
+                guard isNotExpired else { continue }
                 active = true
             }
         }
@@ -99,6 +128,8 @@ final class PurchaseManager: ObservableObject {
             if case .verified(let tx) = result {
                 await updateEntitlements()
                 await tx.finish()
+            } else if case .unverified(_, let error) = result {
+                print("[PurchaseManager] Unverified transaction update: \(error)")
             }
         }
     }

@@ -33,6 +33,7 @@ struct ContentView: View {
                 .tag(Tab.plan)
                 .tabItem { Label("プラン", systemImage: "crown") }
         }
+        .tabViewStyle(.automatic)
         .environmentObject(store)
         .task {
             store.importQueuedSharedEntriesIfNeeded()
@@ -45,7 +46,7 @@ struct ContentView: View {
     }
 
     private func isShareImportURL(_ url: URL) -> Bool {
-        guard url.scheme == "diarybook" else { return false }
+        guard url.scheme == ShareTransferConfig.urlScheme else { return false }
         return url.host == "import" || url.path == "/import"
     }
 }

@@ -231,232 +231,441 @@ struct BookPreviewView: View {
         let config = store.bookLayoutConfig
         let pageWidth: CGFloat = 595.2   // A4 width in points
         let pageHeight: CGFloat = 841.8  // A4 height in points
-        let margin: CGFloat = 48
+        let pageInsets = UIEdgeInsets(top: 52, left: 44, bottom: 56, right: 44)
+        let contentWidth = pageWidth - pageInsets.left - pageInsets.right
 
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight))
         let data = renderer.pdfData { ctx in
-            var y: CGFloat = margin
+            var y: CGFloat = pageInsets.top
+            var pageNumber = 0
 
-            func newPage() {
-                ctx.beginPage()
-                y = margin
-            }
-
-            func remainingHeight() -> CGFloat { pageHeight - margin - y }
-
-            newPage()
-
-            let titleAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 14),
-                .foregroundColor: UIColor.label
-            ]
-            let coverTitleAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 24),
-                .foregroundColor: UIColor.label
-            ]
-            let subtitleAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 14),
-                .foregroundColor: UIColor.secondaryLabel
-            ]
-            let metaAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 11),
-                .foregroundColor: UIColor.secondaryLabel
-            ]
-            let dateAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 10),
-                .foregroundColor: UIColor.secondaryLabel
-            ]
-            let bodyAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 11),
-                .foregroundColor: UIColor.label
-            ]
-            let warningAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 10),
-                .foregroundColor: UIColor.systemOrange
-            ]
-            let sectionAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 12),
-                .foregroundColor: UIColor.secondaryLabel
-            ]
-            let contentWidth = pageWidth - margin * 2
             let dateFormatter = DateFormatter()
             dateFormatter.locale = Locale(identifier: "ja_JP")
             dateFormatter.dateStyle = .long
+            let generatedFormatter = DateFormatter()
+            generatedFormatter.locale = Locale(identifier: "ja_JP")
+            generatedFormatter.dateFormat = "yyyy年M月d日"
 
-            func measuredHeight(_ text: String, attributes: [NSAttributedString.Key: Any]) -> CGFloat {
+            let bodyParagraph = NSMutableParagraphStyle()
+            bodyParagraph.lineSpacing = 3
+            bodyParagraph.lineBreakMode = .byWordWrapping
+            let centeredParagraph = NSMutableParagraphStyle()
+            centeredParagraph.alignment = .center
+            centeredParagraph.lineSpacing = 4
+            let warningParagraph = NSMutableParagraphStyle()
+            warningParagraph.lineSpacing = 2.5
+            warningParagraph.lineBreakMode = .byWordWrapping
+
+            let coverTitleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 31, weight: .bold),
+                .foregroundColor: UIColor.label,
+                .paragraphStyle: centeredParagraph
+            ]
+            let coverSubtitleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 16, weight: .regular),
+                .foregroundColor: UIColor.secondaryLabel,
+                .paragraphStyle: centeredParagraph
+            ]
+            let coverMetaAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: UIColor.secondaryLabel,
+                .paragraphStyle: centeredParagraph
+            ]
+            let runningHeaderAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 10, weight: .medium),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+            let sectionAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 13, weight: .semibold),
+                .foregroundColor: UIColor.white
+            ]
+            let dateAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 11, weight: .regular),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+            let titleAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 15, weight: .bold),
+                .foregroundColor: UIColor.label
+            ]
+            let bodyAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .regular),
+                .foregroundColor: UIColor.label,
+                .paragraphStyle: bodyParagraph
+            ]
+            let sourceAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 10, weight: .regular),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+            let warningTextAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 10, weight: .semibold),
+                .foregroundColor: UIColor.systemOrange,
+                .paragraphStyle: warningParagraph
+            ]
+            let mediaLabelAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 10, weight: .semibold),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+            let mediaSymbolAttrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 12, weight: .semibold),
+                .foregroundColor: UIColor.secondaryLabel
+            ]
+
+            func measuredHeight(
+                _ text: String,
+                width: CGFloat,
+                attributes: [NSAttributedString.Key: Any]
+            ) -> CGFloat {
                 ceil((text as NSString).boundingRect(
-                    with: CGSize(width: contentWidth, height: .greatestFiniteMagnitude),
-                    options: .usesLineFragmentOrigin,
+                    with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
                     attributes: attributes,
                     context: nil
                 ).height)
             }
 
-            func drawBookHeader() {
-                let subtitle = config.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
-                let summary = "並び順: \(config.sortOrder.displayName) / グループ: \(config.grouping.displayName)"
-                let limits = "写真 \(effectivePhotoLimit)枚 / 動画 \(effectiveVideoLimit)本"
-
-                let coverTitleHeight = measuredHeight(bookTitle, attributes: coverTitleAttrs)
-                bookTitle.draw(
-                    with: CGRect(x: margin, y: y, width: contentWidth, height: coverTitleHeight),
-                    options: .usesLineFragmentOrigin,
-                    attributes: coverTitleAttrs,
-                    context: nil
-                )
-                y += coverTitleHeight + 8
-
-                if !subtitle.isEmpty {
-                    let subtitleHeight = measuredHeight(subtitle, attributes: subtitleAttrs)
-                    subtitle.draw(
-                        with: CGRect(x: margin, y: y, width: contentWidth, height: subtitleHeight),
-                        options: .usesLineFragmentOrigin,
-                        attributes: subtitleAttrs,
-                        context: nil
-                    )
-                    y += subtitleHeight + 8
-                }
-
-                (summary as NSString).draw(at: CGPoint(x: margin, y: y), withAttributes: metaAttrs)
-                y += 16
-                (limits as NSString).draw(at: CGPoint(x: margin, y: y), withAttributes: metaAttrs)
-                y += 24
-
-                UIColor.separator.setStroke()
-                let divider = UIBezierPath()
-                divider.move(to: CGPoint(x: margin, y: y))
-                divider.addLine(to: CGPoint(x: pageWidth - margin, y: y))
-                divider.lineWidth = 0.5
-                divider.stroke()
-                y += 20
+            func remainingHeight() -> CGFloat {
+                pageHeight - pageInsets.bottom - y
             }
 
-            drawBookHeader()
+            func drawRunningHeader() {
+                (bookTitle as NSString).draw(
+                    at: CGPoint(x: pageInsets.left, y: y),
+                    withAttributes: runningHeaderAttrs
+                )
+                ("p.\(pageNumber)" as NSString).draw(
+                    at: CGPoint(x: pageWidth - pageInsets.right - 26, y: y),
+                    withAttributes: runningHeaderAttrs
+                )
+                y += 14
+                UIColor.separator.setStroke()
+                let divider = UIBezierPath()
+                divider.move(to: CGPoint(x: pageInsets.left, y: y))
+                divider.addLine(to: CGPoint(x: pageWidth - pageInsets.right, y: y))
+                divider.lineWidth = 0.5
+                divider.stroke()
+                y += 10
+            }
+
+            func beginPage(withRunningHeader: Bool) {
+                ctx.beginPage()
+                pageNumber += 1
+                y = pageInsets.top
+                if withRunningHeader {
+                    drawRunningHeader()
+                }
+            }
+
+            func drawMediaPlaceholder(in rect: CGRect, symbol: String, dashed: Bool) {
+                let rounded = UIBezierPath(roundedRect: rect, cornerRadius: 6)
+                if dashed {
+                    UIColor.secondaryLabel.setStroke()
+                    rounded.setLineDash([4, 3], count: 2, phase: 0)
+                    rounded.lineWidth = 1
+                    rounded.stroke()
+                } else {
+                    UIColor.secondarySystemFill.setFill()
+                    rounded.fill()
+                    UIColor.separator.setStroke()
+                    rounded.lineWidth = 0.6
+                    rounded.stroke()
+                }
+
+                let symbolSize = (symbol as NSString).size(withAttributes: mediaSymbolAttrs)
+                let symbolPoint = CGPoint(
+                    x: rect.midX - symbolSize.width / 2,
+                    y: rect.midY - symbolSize.height / 2
+                )
+                (symbol as NSString).draw(at: symbolPoint, withAttributes: mediaSymbolAttrs)
+            }
+
+            func drawImageThumbnail(_ image: UIImage, in rect: CGRect) {
+                let imageSize = image.size
+                guard imageSize.width > 0, imageSize.height > 0 else {
+                    drawMediaPlaceholder(in: rect, symbol: "写", dashed: false)
+                    return
+                }
+
+                let scale = max(rect.width / imageSize.width, rect.height / imageSize.height)
+                let drawSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+                let drawRect = CGRect(
+                    x: rect.midX - drawSize.width / 2,
+                    y: rect.midY - drawSize.height / 2,
+                    width: drawSize.width,
+                    height: drawSize.height
+                )
+
+                ctx.cgContext.saveGState()
+                UIBezierPath(roundedRect: rect, cornerRadius: 6).addClip()
+                image.draw(in: drawRect)
+                ctx.cgContext.restoreGState()
+
+                UIColor.separator.setStroke()
+                let border = UIBezierPath(roundedRect: rect, cornerRadius: 6)
+                border.lineWidth = 0.5
+                border.stroke()
+            }
+
+            beginPage(withRunningHeader: false)
+
+            let coverCardRect = CGRect(
+                x: pageInsets.left,
+                y: pageInsets.top + 78,
+                width: contentWidth,
+                height: min(390, pageHeight - pageInsets.top - pageInsets.bottom - 180)
+            )
+            UIColor.systemGray6.setFill()
+            UIBezierPath(roundedRect: coverCardRect, cornerRadius: 18).fill()
+
+            let accentRect = CGRect(
+                x: coverCardRect.minX + 24,
+                y: coverCardRect.minY + 24,
+                width: coverCardRect.width - 48,
+                height: 8
+            )
+            UIColor.systemTeal.withAlphaComponent(0.85).setFill()
+            UIBezierPath(roundedRect: accentRect, cornerRadius: 4).fill()
+
+            let subtitle = config.subtitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            var coverTextY = coverCardRect.minY + 56
+            let coverTitleHeight = measuredHeight(bookTitle, width: coverCardRect.width - 56, attributes: coverTitleAttrs)
+            bookTitle.draw(
+                with: CGRect(
+                    x: coverCardRect.minX + 28,
+                    y: coverTextY,
+                    width: coverCardRect.width - 56,
+                    height: coverTitleHeight
+                ),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: coverTitleAttrs,
+                context: nil
+            )
+            coverTextY += coverTitleHeight + 14
+
+            if !subtitle.isEmpty {
+                let subtitleHeight = measuredHeight(subtitle, width: coverCardRect.width - 56, attributes: coverSubtitleAttrs)
+                subtitle.draw(
+                    with: CGRect(
+                        x: coverCardRect.minX + 28,
+                        y: coverTextY,
+                        width: coverCardRect.width - 56,
+                        height: subtitleHeight
+                    ),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: coverSubtitleAttrs,
+                    context: nil
+                )
+                coverTextY += subtitleHeight + 18
+            }
+
+            let coverMetaLines = [
+                "並び順: \(config.sortOrder.displayName)",
+                "グループ: \(config.grouping.displayName)",
+                "写真 \(effectivePhotoLimit)枚 / 動画 \(effectiveVideoLimit)本",
+                config.includeSourceApp ? "ソース表記: あり" : "ソース表記: なし"
+            ]
+            for line in coverMetaLines {
+                let lineHeight = measuredHeight(line, width: coverCardRect.width - 56, attributes: coverMetaAttrs)
+                line.draw(
+                    with: CGRect(
+                        x: coverCardRect.minX + 28,
+                        y: coverTextY,
+                        width: coverCardRect.width - 56,
+                        height: lineHeight
+                    ),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: coverMetaAttrs,
+                    context: nil
+                )
+                coverTextY += lineHeight + 6
+            }
+
+            let generatedText = "生成日: \(generatedFormatter.string(from: Date()))"
+            (generatedText as NSString).draw(
+                at: CGPoint(x: pageInsets.left, y: coverCardRect.maxY + 24),
+                withAttributes: coverMetaAttrs
+            )
+
+            beginPage(withRunningHeader: true)
 
             for group in groups {
                 if !group.key.isEmpty {
-                    if remainingHeight() < 28 && y > margin + 10 {
-                        newPage()
+                    let sectionHeight: CGFloat = 28
+                    if remainingHeight() < sectionHeight + 12 && y > pageInsets.top + 10 {
+                        beginPage(withRunningHeader: true)
                     }
 
+                    let sectionRect = CGRect(x: pageInsets.left, y: y, width: contentWidth, height: sectionHeight)
+                    UIColor.systemTeal.withAlphaComponent(0.9).setFill()
+                    UIBezierPath(roundedRect: sectionRect, cornerRadius: 8).fill()
                     (group.key as NSString).draw(
-                        at: CGPoint(x: margin, y: y),
+                        at: CGPoint(x: sectionRect.minX + 12, y: sectionRect.minY + 6),
                         withAttributes: sectionAttrs
                     )
-                    y += 20
+                    y += sectionHeight + 10
                 }
 
                 for entry in group.entries {
-                    let entryTitle = entry.title.isEmpty ? "" : entry.title
+                    let entryTitle = entry.title.trimmingCharacters(in: .whitespacesAndNewlines)
                     let bodyStr = entry.body
                     let dateStr = dateFormatter.string(from: entry.date)
-                    let sourceText = config.includeSourceApp ? "ソース: \(bookSourceLabel(for: entry.sourceApp))" : nil
+                    let sourceText = config.includeSourceApp ? "出典: \(bookSourceLabel(for: entry.sourceApp))" : nil
                     let photoCount = min(entry.photos.count, effectivePhotoLimit)
                     let videoCount = min(entry.videos.count, effectiveVideoLimit)
-
-                    let dateHeight: CGFloat = 14
-                    let titleHeight: CGFloat = entryTitle.isEmpty ? 0 : measuredHeight(entryTitle, attributes: titleAttrs) + 4
-                    let bodyHeight: CGFloat = bodyStr.isEmpty ? 0 : measuredHeight(bodyStr, attributes: bodyAttrs) + 4
-                    let sourceHeight: CGFloat = sourceText == nil ? 0 : 14
                     let warningLines = [
                         entry.photos.count > effectivePhotoLimit ? "写真は\(effectivePhotoLimit)枚まで掲載" : nil,
                         entry.videos.count > effectiveVideoLimit ? "動画QRは\(effectiveVideoLimit)本まで掲載" : nil
                     ].compactMap { $0 }
-                    let warningHeight: CGFloat = warningLines.isEmpty ? 0 : CGFloat(warningLines.count) * 12
-                    let photoRowHeight: CGFloat = photoCount > 0 ? 60 : 0
-                    let videoRowHeight: CGFloat = videoCount > 0 ? 60 : 0
-                    let totalHeight = dateHeight + titleHeight + bodyHeight + sourceHeight + warningHeight + photoRowHeight + videoRowHeight + 24
 
-                    if remainingHeight() < totalHeight && y > margin + 10 {
-                        newPage()
+                    let cardInset: CGFloat = 14
+                    let cardWidth = contentWidth
+                    let innerWidth = cardWidth - (cardInset * 2)
+                    let mediaColumns = 3
+                    let mediaGap: CGFloat = 8
+                    let mediaThumb = floor((innerWidth - (CGFloat(mediaColumns - 1) * mediaGap)) / CGFloat(mediaColumns))
+
+                    let dateHeight = measuredHeight(dateStr, width: innerWidth, attributes: dateAttrs)
+                    let titleHeight = entryTitle.isEmpty ? 0 : measuredHeight(entryTitle, width: innerWidth, attributes: titleAttrs)
+                    let bodyHeight = bodyStr.isEmpty ? 0 : measuredHeight(bodyStr, width: innerWidth, attributes: bodyAttrs)
+                    let sourceHeight = sourceText == nil ? 0 : measuredHeight(sourceText!, width: innerWidth, attributes: sourceAttrs)
+
+                    let warningText = warningLines.map { "• \($0)" }.joined(separator: "\n")
+                    let warningTextHeight = warningLines.isEmpty ? 0 : measuredHeight(warningText, width: innerWidth - 16, attributes: warningTextAttrs)
+                    let warningBoxHeight = warningLines.isEmpty ? 0 : warningTextHeight + 12
+
+                    let photoRows = photoCount > 0 ? Int(ceil(Double(photoCount) / Double(mediaColumns))) : 0
+                    let photoLabelHeight: CGFloat = photoCount > 0 ? measuredHeight("写真", width: innerWidth, attributes: mediaLabelAttrs) + 4 : 0
+                    let photoGridHeight: CGFloat = photoRows > 0
+                        ? (CGFloat(photoRows) * mediaThumb) + (CGFloat(max(photoRows - 1, 0)) * mediaGap)
+                        : 0
+                    let videoRows = videoCount > 0 ? Int(ceil(Double(videoCount) / Double(mediaColumns))) : 0
+                    let videoLabelHeight: CGFloat = videoCount > 0 ? measuredHeight("動画QR", width: innerWidth, attributes: mediaLabelAttrs) + 4 : 0
+                    let videoGridHeight: CGFloat = videoRows > 0
+                        ? (CGFloat(videoRows) * mediaThumb) + (CGFloat(max(videoRows - 1, 0)) * mediaGap)
+                        : 0
+
+                    var cardContentHeight = dateHeight
+                    if titleHeight > 0 { cardContentHeight += 6 + titleHeight }
+                    if bodyHeight > 0 { cardContentHeight += 8 + bodyHeight }
+                    if sourceHeight > 0 { cardContentHeight += 8 + sourceHeight }
+                    if warningBoxHeight > 0 { cardContentHeight += 8 + warningBoxHeight }
+                    if photoGridHeight > 0 { cardContentHeight += 10 + photoLabelHeight + photoGridHeight }
+                    if videoGridHeight > 0 { cardContentHeight += 10 + videoLabelHeight + videoGridHeight }
+
+                    let cardHeight = (cardInset * 2) + cardContentHeight
+                    if remainingHeight() < cardHeight + 12 && y > pageInsets.top + 10 {
+                        beginPage(withRunningHeader: true)
                     }
 
+                    let cardRect = CGRect(x: pageInsets.left, y: y, width: cardWidth, height: cardHeight)
+                    UIColor.secondarySystemBackground.setFill()
+                    UIBezierPath(roundedRect: cardRect, cornerRadius: 10).fill()
+                    UIColor.separator.setStroke()
+                    let cardBorder = UIBezierPath(roundedRect: cardRect, cornerRadius: 10)
+                    cardBorder.lineWidth = 0.7
+                    cardBorder.stroke()
+
+                    var cursorY = cardRect.minY + cardInset
                     (dateStr as NSString).draw(
-                        at: CGPoint(x: margin, y: y),
+                        at: CGPoint(x: cardRect.minX + cardInset, y: cursorY),
                         withAttributes: dateAttrs
                     )
-                    y += dateHeight
+                    cursorY += dateHeight
 
                     if !entryTitle.isEmpty {
                         entryTitle.draw(
-                            with: CGRect(x: margin, y: y, width: contentWidth, height: titleHeight),
-                            options: .usesLineFragmentOrigin,
+                            with: CGRect(x: cardRect.minX + cardInset, y: cursorY + 6, width: innerWidth, height: titleHeight),
+                            options: [.usesLineFragmentOrigin, .usesFontLeading],
                             attributes: titleAttrs,
                             context: nil
                         )
-                        y += titleHeight
+                        cursorY += 6 + titleHeight
                     }
 
                     if !bodyStr.isEmpty {
                         bodyStr.draw(
-                            with: CGRect(x: margin, y: y, width: contentWidth, height: bodyHeight),
-                            options: .usesLineFragmentOrigin,
+                            with: CGRect(x: cardRect.minX + cardInset, y: cursorY + 8, width: innerWidth, height: bodyHeight),
+                            options: [.usesLineFragmentOrigin, .usesFontLeading],
                             attributes: bodyAttrs,
                             context: nil
                         )
-                        y += bodyHeight
+                        cursorY += 8 + bodyHeight
                     }
 
                     if let sourceText {
                         (sourceText as NSString).draw(
-                            at: CGPoint(x: margin, y: y),
-                            withAttributes: metaAttrs
+                            at: CGPoint(x: cardRect.minX + cardInset, y: cursorY + 8),
+                            withAttributes: sourceAttrs
                         )
-                        y += sourceHeight
+                        cursorY += 8 + sourceHeight
                     }
 
-                    for warning in warningLines {
-                        (warning as NSString).draw(
-                            at: CGPoint(x: margin, y: y),
-                            withAttributes: warningAttrs
+                    if !warningLines.isEmpty {
+                        let warningRect = CGRect(
+                            x: cardRect.minX + cardInset,
+                            y: cursorY + 8,
+                            width: innerWidth,
+                            height: warningBoxHeight
                         )
-                        y += 12
+                        UIColor.systemOrange.withAlphaComponent(0.12).setFill()
+                        UIBezierPath(roundedRect: warningRect, cornerRadius: 6).fill()
+
+                        warningText.draw(
+                            with: warningRect.insetBy(dx: 8, dy: 6),
+                            options: [.usesLineFragmentOrigin, .usesFontLeading],
+                            attributes: warningTextAttrs,
+                            context: nil
+                        )
+                        cursorY += 8 + warningBoxHeight
                     }
 
                     if photoCount > 0 {
-                        let thumbSize: CGFloat = 48
-                        var x = margin
-                        for photo in entry.photos.prefix(photoCount) {
+                        ("写真" as NSString).draw(
+                            at: CGPoint(x: cardRect.minX + cardInset, y: cursorY + 10),
+                            withAttributes: mediaLabelAttrs
+                        )
+                        cursorY += 10 + photoLabelHeight
+
+                        for (idx, photo) in entry.photos.prefix(photoCount).enumerated() {
+                            let row = idx / mediaColumns
+                            let column = idx % mediaColumns
+                            let rect = CGRect(
+                                x: cardRect.minX + cardInset + CGFloat(column) * (mediaThumb + mediaGap),
+                                y: cursorY + CGFloat(row) * (mediaThumb + mediaGap),
+                                width: mediaThumb,
+                                height: mediaThumb
+                            )
                             if let data = store.loadImageData(filename: photo.filename),
                                let image = UIImage(data: data) {
-                                image.draw(in: CGRect(x: x, y: y, width: thumbSize, height: thumbSize))
+                                drawImageThumbnail(image, in: rect)
                             } else {
-                                UIColor.secondarySystemFill.setFill()
-                                UIBezierPath(
-                                    roundedRect: CGRect(x: x, y: y, width: thumbSize, height: thumbSize),
-                                    cornerRadius: 4
-                                ).fill()
+                                drawMediaPlaceholder(in: rect, symbol: "写", dashed: false)
                             }
-                            x += thumbSize + 8
                         }
-                        y += photoRowHeight
+                        cursorY += photoGridHeight
                     }
 
                     if videoCount > 0 {
-                        let thumbSize: CGFloat = 48
-                        var x = margin
-                        for _ in 0..<videoCount {
-                            let rect = CGRect(x: x, y: y, width: thumbSize, height: thumbSize)
-                            let box = UIBezierPath(roundedRect: rect, cornerRadius: 4)
-                            UIColor.secondaryLabel.setStroke()
-                            box.lineWidth = 1
-                            box.stroke()
-                            ("QR" as NSString).draw(
-                                at: CGPoint(x: x + 13, y: y + 16),
-                                withAttributes: metaAttrs
+                        ("動画QR" as NSString).draw(
+                            at: CGPoint(x: cardRect.minX + cardInset, y: cursorY + 10),
+                            withAttributes: mediaLabelAttrs
+                        )
+                        cursorY += 10 + videoLabelHeight
+
+                        for idx in 0..<videoCount {
+                            let row = idx / mediaColumns
+                            let column = idx % mediaColumns
+                            let rect = CGRect(
+                                x: cardRect.minX + cardInset + CGFloat(column) * (mediaThumb + mediaGap),
+                                y: cursorY + CGFloat(row) * (mediaThumb + mediaGap),
+                                width: mediaThumb,
+                                height: mediaThumb
                             )
-                            x += thumbSize + 8
+                            drawMediaPlaceholder(in: rect, symbol: "QR", dashed: true)
                         }
-                        y += videoRowHeight
+                        cursorY += videoGridHeight
                     }
 
-                    UIColor.separator.setStroke()
-                    let sep = UIBezierPath()
-                    sep.move(to: CGPoint(x: margin, y: y + 8))
-                    sep.addLine(to: CGPoint(x: pageWidth - margin, y: y + 8))
-                    sep.lineWidth = 0.5
-                    sep.stroke()
-                    y += 20
+                    y += cardHeight + 12
                 }
             }
         }
@@ -487,29 +696,34 @@ struct BookEntryRow: View {
     private var printVideos: [VideoAttachment]  { Array(entry.videos.prefix(maxVideosInPrint)) }
     private var photosExceedLimit: Bool { entry.photos.count > maxPhotosInPrint }
     private var videosExceedLimit: Bool { entry.videos.count > maxVideosInPrint }
+    private var warningMessages: [String] {
+        [
+            photosExceedLimit ? "写真は最大\(maxPhotosInPrint)枚まで反映" : nil,
+            videosExceedLimit ? "動画QRは最大\(maxVideosInPrint)本まで反映" : nil
+        ].compactMap { $0 }
+    }
     private var sourceLabel: String? {
         guard includeSourceApp else { return nil }
-        return "ソース: \(bookSourceLabel(for: entry.sourceApp))"
+        return "出典: \(bookSourceLabel(for: entry.sourceApp))"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(entry.date, style: .date)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            // Title
             if !entry.title.isEmpty {
                 Text(entry.title)
                     .font(.subheadline.bold())
+                    .foregroundStyle(.primary)
             }
 
-            // Body preview
             if !entry.body.isEmpty {
                 Text(entry.body)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(4)
+                    .font(.callout)
+                    .lineSpacing(2)
+                    .lineLimit(8)
             }
 
             if let sourceLabel {
@@ -518,61 +732,75 @@ struct BookEntryRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            if photosExceedLimit {
-                Text("写真: 最大\(maxPhotosInPrint)枚まで反映")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            }
-
-            if videosExceedLimit {
-                Text("動画QR: 最大\(maxVideosInPrint)本まで反映")
-                    .font(.caption2)
-                    .foregroundStyle(.orange)
-            }
-
-            // Photo thumbnails (capped to print limit)
-            if !printPhotos.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(printPhotos) { _ in
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.secondary.opacity(0.15))
-                            .frame(width: 36, height: 36)
-                            .overlay(Image(systemName: "photo").font(.caption2).foregroundStyle(.secondary))
+            if !warningMessages.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(warningMessages, id: \.self) { warning in
+                        Text("• \(warning)")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
                     }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
+            if !printPhotos.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("写真")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 8) {
+                        ForEach(printPhotos) { _ in
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color.secondary.opacity(0.16))
+                                .frame(width: 44, height: 44)
+                                .overlay(Image(systemName: "photo").font(.caption).foregroundStyle(.secondary))
+                        }
+                    }
+
                     if photosExceedLimit {
-                        Text("+\(entry.photos.count - maxPhotosInPrint)枚省略")
+                        Text("+\(entry.photos.count - maxPhotosInPrint)枚を省略")
                             .font(.caption2)
                             .foregroundStyle(.orange)
                     }
                 }
             }
 
-            // QR placeholders for videos
             if !printVideos.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(printVideos) { _ in
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(style: StrokeStyle(lineWidth: 1, dash: [3]))
-                                .frame(width: 36, height: 36)
-                                .foregroundStyle(.secondary)
-                            Image(systemName: "qrcode")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("動画QR")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 8) {
+                        ForEach(printVideos) { _ in
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(style: StrokeStyle(lineWidth: 1, dash: [3]))
+                                    .frame(width: 44, height: 44)
+                                    .foregroundStyle(.secondary)
+                                Image(systemName: "qrcode")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
-                    Text("QRコード（動画）")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+
                     if videosExceedLimit {
-                        Text("+\(entry.videos.count - maxVideosInPrint)本省略")
+                        Text("+\(entry.videos.count - maxVideosInPrint)本を省略")
                             .font(.caption2)
                             .foregroundStyle(.orange)
                     }
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(12)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.vertical, 2)
     }
 }
 

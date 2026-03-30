@@ -3,7 +3,6 @@
 // ローカルテスト時は Xcode Scheme > StoreKit Configuration に Products.storekit を指定すること。
 
 import SwiftUI
-import StoreKit
 
 struct PlanView: View {
     @EnvironmentObject var store: DiaryStore
@@ -23,11 +22,17 @@ struct PlanView: View {
                 }
                 restoreSection
             }
+            .regularWidthContent(maxWidth: 860)
             .navigationTitle("プラン")
             .alert("エラー", isPresented: $showError) {
                 Button("OK") {}
             } message: {
                 Text(errorMessage ?? "")
+            }
+            .task {
+                if pm.proProduct == nil {
+                    await pm.refreshProducts()
+                }
             }
         }
     }
@@ -144,6 +149,12 @@ struct PlanView: View {
     @ViewBuilder
     private var purchaseSection: some View {
         Section {
+            if let loadError = pm.productLoadError {
+                Text(loadError)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
             Button {
                 Task { await doPurchase() }
             } label: {
@@ -152,24 +163,34 @@ struct PlanView: View {
                         ProgressView()
                     } else {
                         Text(pm.proProduct.map { "Proにアップグレード \($0.displayPrice)/月" }
-                             ?? "Proにアップグレード")
+                             ?? "商品情報を取得中...")
                             .bold()
                     }
                 }
                 .frame(maxWidth: .infinity)
             }
+            .disabled(pm.isLoading || pm.proProduct == nil)
+
+            Button("商品情報を再読み込み") {
+                Task { await pm.refreshProducts() }
+            }
             .disabled(pm.isLoading)
         } footer: {
-            Text("App Storeのサブスクリプション規約が適用されます。購入後はキャンセルするまで毎月自動更新されます。")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("App Storeのサブスクリプション規約が適用されます。購入後はキャンセルするまで毎月自動更新されます。")
+                Link("サブスクリプションを管理", destination: URL(string: "https://apps.apple.com/account/subscriptions")!)
+            }
         }
     }
 
     private var restoreSection: some View {
         Section {
             Button("購入を復元") {
-                Task { await pm.restore() }
+                Task { await doRestore() }
             }
             .disabled(pm.isLoading)
+        } footer: {
+            Text("同じ Apple Account での購入履歴がある場合に復元できます。")
         }
     }
 
@@ -181,9 +202,22 @@ struct PlanView: View {
         } catch StoreError.userCancelled {
             // no-op
         } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+            presentError(error)
         }
+    }
+
+    private func doRestore() async {
+        do {
+            try await pm.restore()
+        } catch {
+            presentError(error)
+        }
+    }
+
+    private func presentError(_ error: Error) {
+        let message = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        errorMessage = message.isEmpty ? "処理に失敗しました。時間をおいて再試行してください。" : message
+        showError = true
     }
 
     private func configBinding<Value>(_ keyPath: WritableKeyPath<BookLayoutConfig, Value>) -> Binding<Value> {

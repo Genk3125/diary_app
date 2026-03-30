@@ -1,7 +1,6 @@
 // DiaryEditorView.swift
 // Handles both creation (existingEntry == nil) and editing.
 // Plan limits are enforced before media is accepted.
-// TODO: Wire up real StoreKit subscription gate instead of plan mock.
 
 import SwiftUI
 import PhotosUI
@@ -66,6 +65,7 @@ struct DiaryEditorView: View {
                 videosSection
                 planSection
             }
+            .regularWidthContent(maxWidth: 760)
             .navigationTitle(existingEntry == nil ? "新しい日記" : "日記を編集")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

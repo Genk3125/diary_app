@@ -1,120 +1,113 @@
-# DiaryBook — モジュール依存関係マップ
+# DiaryBook — モジュール依存関係マップ（現行実装）
 
-> 変更時の影響範囲確認・新機能追加時の差し込み先判断に使ってください。
+変更時の影響範囲を素早く把握するための依存マップです。
 
----
+## 1. 依存グラフ（矢印 = 依存方向）
 
-## 依存グラフ（矢印 = 依存方向）
-
-```
+```text
 DiaryApp.swift
-    └── ContentView
-            ├── DiaryListView
-            │       ├── DiaryDetailView
-            │       │       └── DiaryEditorView ─────────────────┐
-            │       └── DiaryEditorView                          │
-            ├── ImportView                                        │
-            │       └── ImportManager                            │
-            │               ├── JSONImporter                     │
-            │               ├── CSVImporter                      │
-            │               ├── ZIPImporter                      │
-            │               │       ├── JSONImporter             │
-            │               │       └── CSVImporter              │
-            │               └── TextImporter                     │
-            └── BookPreviewView                                   │
-                                                                  │
-All Views ──────────────────── @EnvironmentObject ──► DiaryStore ┘
-                                                        │
-                                                   Models/
-                                                   DiaryEntry
-                                                   PhotoAttachment
-                                                   VideoAttachment
-                                                   UserPlan
-                                                   BookLayoutConfig
+  └─ ContentView
+      ├─ DiaryListView
+      │   └─ DiaryDetailView
+      │       └─ DiaryEditorView
+      ├─ ImportView
+      ├─ BookPreviewView
+      └─ PlanView
+
+All Views
+  └─ @EnvironmentObject DiaryStore
+      ├─ PurchaseManager
+      ├─ ImportManager
+      │   ├─ JSONImporter
+      │   ├─ CSVImporter
+      │   ├─ ZIPImporter
+      │   │   ├─ JSONImporter
+      │   │   └─ CSVImporter
+      │   ├─ PDFImporter
+      │   └─ TextImporter
+      └─ Models
+          ├─ DiaryEntry
+          ├─ PhotoAttachment
+          ├─ VideoAttachment
+          ├─ UserPlan
+          └─ BookLayoutConfig
+
+ShareViewController (ShareExtension)
+  └─ Shared/ShareTransfer.swift (ShareQueueStore)
+      └─ ContentView.onOpenURL/.task
+          └─ DiaryStore.importQueuedSharedEntriesIfNeeded()
 ```
 
----
-
-## レイヤー別責務
+## 2. レイヤー別責務
 
 | レイヤー | ファイル | 責務 |
 |---|---|---|
-| **Entry point** | `DiaryApp.swift` | App, WindowGroup |
-| **View / Root** | `ContentView.swift` | TabView, DiaryStore 生成 |
-| **View / List** | `DiaryListView.swift` | 一覧表示、スワイプ削除 |
-| **View / Detail** | `DiaryDetailView.swift` | 詳細表示（写真グリッド、動画QR枠） |
-| **View / Editor** | `DiaryEditorView.swift` | 作成・編集、PhotosPicker、プラン上限チェック |
-| **View / Import** | `ImportView.swift` | ファイル選択・テキスト貼り付け UI |
-| **View / Book** | `BookPreviewView.swift` | 印刷プレビュー、グループ化、制限警告 |
-| **Storage** | `DiaryStore.swift` | JSON 読み書き、メディアファイル管理、プラン参照 |
-| **Import** | `ImportManager.swift` | 拡張子 → インポーター ルーティング |
-| **Import / Shared** | `ShareTransfer.swift` | App Group queue / payload 共通定義 |
-| **Import** | `JSONImporter.swift` | JSON → `[DiaryEntry]` |
-| **Import** | `CSVImporter.swift` | CSV → `[DiaryEntry]` |
-| **Import** | `ZIPImporter.swift` | ZIP 展開（スタブ）→ JSON/CSV 再帰パース |
-| **Import** | `TextImporter.swift` | テキスト → `[DiaryEntry]`（日付行で分割） |
-| **Model** | `DiaryEntry.swift` | コアモデル（Codable） |
-| **Model** | `MediaAttachment.swift` | `PhotoAttachment` / `VideoAttachment` |
-| **Model** | `UserPlan.swift` | プラン enum、上限値定義 |
-| **Model** | `BookLayoutConfig.swift` | 書籍レイアウト設定 |
+| Entry point | `DiaryApp/DiaryApp.swift` | アプリ起動 |
+| Root view | `DiaryApp/Views/ContentView.swift` | TabView、`DiaryStore` 注入、共有URL受信 |
+| Layout helper | `DiaryApp/Views/AdaptiveLayout.swift` | iPad/横幅向けの `regularWidthContent` 制約 |
+| Diary UI | `DiaryApp/Views/DiaryList/DiaryListView.swift` | 一覧、検索、絞り込み、遷移 |
+| Diary UI | `DiaryApp/Views/DiaryDetail/DiaryDetailView.swift` | 詳細表示、動画再生、編集/削除 |
+| Diary UI | `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift` | 作成/編集、写真動画添付、上限判定 |
+| Import UI | `DiaryApp/Views/Import/ImportView.swift` | ファイル/テキスト取り込みUI |
+| Book UI | `DiaryApp/Views/BookPreview/BookPreviewView.swift` | プレビュー、PDF生成/共有 |
+| Plan UI | `DiaryApp/Views/Settings/PlanView.swift` | プラン表示、購入、復元、書籍設定編集 |
+| Storage | `DiaryApp/Storage/DiaryStore.swift` | JSON保存、メディア保存、設定保存、共有キュー取り込み、バックアップ除外、孤立メディア掃除 |
+| Purchase | `DiaryApp/Purchases/PurchaseManager.swift` | StoreKit 2 商品取得・購入・復元・購読状態更新 |
+| Import routing | `DiaryApp/Import/ImportManager.swift` | 拡張子/入力種別に応じた importer 振り分け |
+| Import impl | `DiaryApp/Import/*.swift` | JSON/CSV/ZIP/PDF/Text のパース |
+| Shared transfer | `Shared/ShareTransfer.swift` | App Group queue と共有画像ステージング |
+| Share extension | `ShareExtension/ShareViewController.swift` | 共有データ正規化、queue保存、本体起動 |
 
----
+## 3. 変更時の差し込みポイント
 
-## 拡張ポイント一覧
-
-| 機能 | 差し込み場所 |
+| やりたいこと | 変更箇所 |
 |---|---|
-| 新しいインポート形式 | `ImportManager.swift` に case 追加 + `XxxImporter.swift` 追加 |
-| ZIP 実装 | `ZIPImporter.swift` のスタブを ZipFoundation で置き換え |
-| PDF インポート | `ImportManager.swift` の `.pdf` ケース + `PDFImporter.swift` |
-| 共有シート受け取り | `ShareViewController.swift` → `ShareTransfer.swift` → `ContentView.swift` / `DiaryStore.importQueuedSharedEntriesIfNeeded()` |
-| StoreKit 課金 | `UserPlan` を StoreKit Product に紐付け、`DiaryStore.currentPlan` を更新 |
-| CloudKit 同期 | `DiaryStore` の `saveEntries` / `loadEntries` を CloudKit 実装に差し替え |
-| 動画クラウドアップロード | `VideoAttachment.hostedAssetID` / `remoteURL` を書き戻す処理を追加 |
-| QR コード生成 | `VideoAttachment.qrCodeTarget` を `CoreImage.CIFilter.qrCodeGenerator` へ渡す |
-| PDF 書き出し | `BookPreviewView` のレイアウトを `UIGraphicsPDFRenderer` でレンダリング |
-| 印刷上限の個別設定 | `BookLayoutConfig.maxPhotosPerEntry` を非 nil にして `DiaryStore` 経由で渡す |
+| 新しい取込形式を追加 | `ImportManager.swift` にcase追加 + `Import/XxxImporter.swift` 追加 |
+| Share受け取り項目を増やす | `ShareViewController.swift`, `ShareTransfer.swift`, `ImportManager.importSharePayloads` |
+| プラン上限を変更 | `Models/UserPlan.swift`, 必要に応じて `PlanView.swift` |
+| 書籍レイアウト項目を増やす | `Models/BookLayoutConfig.swift`, `PlanView.swift`, `BookPreviewView.swift`, `DiaryStore.saveConfig/loadConfig` |
+| 動画アップロード実装 | `DiaryStore.saveVideoFile` 後段 + `VideoAttachment` 更新 |
+| クラウド同期へ移行 | `DiaryStore.loadEntries/saveEntries/deleteEntry/importEntries` の保存層差し替え |
 
----
+## 4. 主要データフロー
 
-## 主要データフロー
+### 4.1 日記作成・更新
 
-### 日記作成
-```
-User input
-  → DiaryEditorView（バリデーション・プラン上限チェック）
-    → DiaryStore.addEntry()
-      → diary_entries.json に書き込み
-      → media/ にメディアファイルを書き込み
-        → DiaryListView が @Published entries を受信して再描画
+```text
+DiaryEditorView
+  -> DiaryStore.addEntry / updateEntry
+  -> diary_entries.json 保存
+  -> @Published entries 更新
+  -> DiaryListView / BookPreviewView 再描画
 ```
 
-### インポート
-```
-ファイル / テキスト
-  → ImportView
-    → ImportManager.importFile(at:) or importText(_:)
-      → XxxImporter → [DiaryEntry]（sourceApp 付き）
-        → DiaryStore.importEntries()（重複 id はスキップ）
-          → diary_entries.json に書き込み
+### 4.2 ファイル/テキスト取り込み
+
+```text
+ImportView
+  -> ImportManager.importFile / importText
+  -> 各Importerで [DiaryEntry]
+  -> DiaryStore.importEntries
+  -> diary_entries.json 保存
 ```
 
-### Share Extension 受け取り
-```
-他アプリの共有シート
-  → ShareViewController
-    → ShareTransfer.swift（App Group queue / 画像 staging）
-      → diarybook://import
-        → ContentView.onOpenURL / .task
-          → DiaryStore.importQueuedSharedEntriesIfNeeded()
-            → ImportManager.importSharePayloads()
-              → DiaryStore.importEntries()
+### 4.3 Share Extension 取り込み
+
+```text
+ShareViewController
+  -> ShareQueueStore.append
+  -> diarybook://import
+  -> ContentView.onOpenURL or .task
+  -> DiaryStore.importQueuedSharedEntriesIfNeeded
+  -> ImportManager.importSharePayloads
+  -> DiaryStore.importEntries
 ```
 
-### 書籍化プレビュー
-```
-DiaryStore.entries
-  → BookPreviewView（ソート・グループ化）
-    → BookEntryRow（プラン上限を適用して写真数・動画QR枠を描画）
-      → TODO: PDFRenderer に渡して書き出し
+### 4.4 書籍化とPDF
+
+```text
+DiaryStore.entries + BookLayoutConfig
+  -> BookPreviewView（並び替え・グルーピング・上限適用）
+  -> exportPDF()（A4描画）
+  -> ShareSheet
 ```

@@ -4,10 +4,33 @@
 import Foundation
 
 enum ShareTransferConfig {
-    static let appGroupID = "group.com.yourapp.diaryapp"
     static let queueFilename = "share_queue.json"
     static let stagedImageDirectoryName = "share_media"
-    static let importURL = URL(string: "diarybook://import")!
+    static var appGroupID: String {
+        infoValue(
+            for: "DiaryShareAppGroupID",
+            defaultValue: "group.com.yourapp.diaryapp"
+        )
+    }
+    static var urlScheme: String {
+        infoValue(
+            for: "DiaryShareURLScheme",
+            defaultValue: "diarybook"
+        )
+    }
+    static var importURL: URL {
+        URL(string: "\(urlScheme)://import")!
+    }
+
+    private static func infoValue(for key: String, defaultValue: String) -> String {
+        let value = (Bundle.main.object(forInfoDictionaryKey: key) as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let value, !value.isEmpty {
+            return value
+        }
+        return defaultValue
+    }
 }
 
 enum ShareTransferError: LocalizedError {
