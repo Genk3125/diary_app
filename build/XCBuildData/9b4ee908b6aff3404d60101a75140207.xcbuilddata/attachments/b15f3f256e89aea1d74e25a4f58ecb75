@@ -1,0 +1,19 @@
+{
+  "" : {
+    "diagnostics" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareExtension-primary.dia",
+    "emit-module-dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareExtension-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareExtension-primary-emit-module.dia",
+    "pch" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareExtension-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareExtension-primary.swiftdeps"
+  },
+  "/Users/kondogenki/diary_app/ShareExtension/ShareViewController.swift" : {
+    "const-values" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.swiftconstvalues",
+    "dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.d",
+    "diagnostics" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.dia",
+    "index-unit-output-path" : "/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.o",
+    "llvm-bc" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.bc",
+    "object" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.o",
+    "swift-dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController.swiftdeps",
+    "swiftmodule" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/ShareExtension.build/Objects-normal/x86_64/ShareViewController~partial.swiftmodule"
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "identifier": "DiaryBookProducts",
+  "nonConsumableProducts": [],
+  "nonRenewingSubscriptions": [],
+  "products": [],
+  "settings": {
+    "_locale": "ja_JP",
+    "_storefront": "JPN",
+    "hasStoreKitEntitlement": false
+  },
+  "subscriptionGroups": [
+    {
+      "id": "group.diarybook.subscription",
+      "localizations": [
+        {
+          "locale": "ja_JP",
+          "name": "DiaryBook サブスクリプション"
+        }
+      ],
+      "name": "DiaryBook Subscription",
+      "subscriptions": [
+        {
+          "adHocOfferCodesEnabled": true,
+          "displayPrice": "600",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "id": "com.yourapp.diaryapp.pro.monthly",
+          "internalID": "7A3F5E2B-C4F8-4A23-B9D1-000000000001",
+          "introductoryOffer": null,
+          "localizations": [
+            {
+              "description": "写真3枚・動画3本まで添付できます。PDF取り込み、QRコード生成にも対応。",
+              "displayName": "DiaryBook Pro（月額）",
+              "locale": "ja_JP"
+            }
+          ],
+          "productID": "com.yourapp.diaryapp.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Pro Monthly",
+          "subscriptionGroupID": "group.diarybook.subscription",
+          "type": "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

@@ -1,0 +1,77 @@
+# project.yml — xcodegen project definition
+# Usage: brew install xcodegen && xcodegen generate
+
+name: DiaryApp
+options:
+  bundleIdPrefix: com.yourapp
+  deploymentTarget:
+    iOS: "17.0"
+  defaultConfig: Debug
+  xcodeVersion: "15.0"
+
+packages:
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation.git
+    from: "0.9.19"
+
+targets:
+  DiaryApp:
+    type: application
+    platform: iOS
+    sources:
+      - path: DiaryApp
+    info:
+      path: DiaryApp/Info.plist
+      properties:
+        CFBundleDisplayName: DiaryBook
+        NSPhotoLibraryUsageDescription: "写真・動画を日記に添付するために使用します"
+        NSPhotoLibraryAddUsageDescription: "日記の写真を保存するために使用します"
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        CFBundleURLTypes:
+          - CFBundleURLName: com.yourapp.diaryapp
+            CFBundleURLSchemes:
+              - diarybook
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yourapp.diaryapp
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_FILE: DiaryApp/Info.plist
+      configs:
+        Debug:
+          DEBUG_INFORMATION_FORMAT: dwarf
+        Release:
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+    dependencies:
+      - package: ZIPFoundation
+      - target: ShareExtension
+        embed: true
+
+  ShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ShareExtension
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: DiaryBookに保存
+        NSExtension:
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsImageWithMaxCount: 10
+              NSExtensionActivationSupportsFileWithMaxCount: 5
+            PHSupportedMediaTypes:
+              - Image
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yourapp.diaryapp.shareextension
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"

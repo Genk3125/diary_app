@@ -1,0 +1,11 @@
+Target dependency graph (5 targets)
+Target 'DiaryApp' in project 'DiaryApp'
+➜ Explicit dependency on target 'ShareExtension' in project 'DiaryApp'
+➜ Explicit dependency on target 'ZIPFoundation' in project 'ZIPFoundation'
+Target 'ZIPFoundation' in project 'ZIPFoundation'
+➜ Explicit dependency on target 'ZIPFoundation' in project 'ZIPFoundation'
+➜ Explicit dependency on target 'ZIPFoundation_ZIPFoundation' in project 'ZIPFoundation'
+Target 'ZIPFoundation' in project 'ZIPFoundation'
+➜ Explicit dependency on target 'ZIPFoundation_ZIPFoundation' in project 'ZIPFoundation'
+Target 'ZIPFoundation_ZIPFoundation' in project 'ZIPFoundation' (no dependencies)
+Target 'ShareExtension' in project 'DiaryApp' (no dependencies)

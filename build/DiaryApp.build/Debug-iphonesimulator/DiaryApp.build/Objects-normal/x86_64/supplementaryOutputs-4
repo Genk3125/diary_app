@@ -1,0 +1,23 @@
+{
+  "/Users/kondogenki/diary_app/DiaryApp/Import/CSVImporter.swift" : {
+    "const-values" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/CSVImporter.swiftconstvalues",
+    "dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/CSVImporter.d",
+    "diagnostics" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/CSVImporter.dia",
+    "object" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/CSVImporter.o",
+    "swift-dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/CSVImporter.swiftdeps"
+  },
+  "/Users/kondogenki/diary_app/DiaryApp/Models/BookLayoutConfig.swift" : {
+    "const-values" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookLayoutConfig.swiftconstvalues",
+    "dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookLayoutConfig.d",
+    "diagnostics" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookLayoutConfig.dia",
+    "object" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookLayoutConfig.o",
+    "swift-dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookLayoutConfig.swiftdeps"
+  },
+  "/Users/kondogenki/diary_app/DiaryApp/Views/BookPreview/BookPreviewView.swift" : {
+    "const-values" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookPreviewView.swiftconstvalues",
+    "dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookPreviewView.d",
+    "diagnostics" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookPreviewView.dia",
+    "object" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookPreviewView.o",
+    "swift-dependencies" : "/Users/kondogenki/diary_app/build/DiaryApp.build/Debug-iphonesimulator/DiaryApp.build/Objects-normal/x86_64/BookPreviewView.swiftdeps"
+  }
+}
