@@ -88,6 +88,7 @@
 | P1 | 動画のクラウドアップロード | `VideoAttachment.remoteURL` / `hostedAssetID` は用意済みだが、アップロード処理なし | `DiaryApp/Storage/DiaryStore.swift`, `DiaryApp/Models/MediaAttachment.swift` |
 | P1 | ZIP内画像の取り込み | ZIPはJSON/CSVのみ再帰取り込み | `DiaryApp/Import/ZIPImporter.swift` |
 | P1 | PDF OCR | テキスト抽出のみ（スキャンPDF非対応） | `DiaryApp/Import/PDFImporter.swift` |
+| P1 | 書籍化を任意タイミング起動に変更 | 現状は定期的に強制生成が走る挙動になっているが、ユーザーが明示的に「書籍を作る」操作をした時のみ生成する方式に変更する | `DiaryApp/Views/BookPreview/BookPreviewView.swift`, `DiaryApp/Models/BookLayoutConfig.swift` |
 | P2 | iPad 実機 QA（未確認挙動の確認） | ターゲット追加と主要画面の崩れ対策は実装済み。実機で回転・マルチウィンドウ・共有シート表示を最終確認する | `DiaryApp/Views/ContentView.swift`, `DiaryApp/Views/DiaryList/DiaryListView.swift`, `DiaryApp/Views/DiaryDetail/DiaryDetailView.swift`, `DiaryApp/Views/DiaryEditor/DiaryEditorView.swift`, `DiaryApp/Views/Import/ImportView.swift`, `DiaryApp/Views/BookPreview/BookPreviewView.swift`, `DiaryApp/Views/Settings/PlanView.swift` |
 
 ### 2.3 外部設定待ち（コードはあるが環境設定が必要）
@@ -122,6 +123,7 @@
 - [ ] JSON / CSV / ZIP / PDF / テキスト取り込み
 - [ ] Share Extension からのテキスト・URL・画像取り込み
 - [ ] 書籍プレビューの並び順・グループ・反映上限
+- [ ] 書籍化が任意タイミング（ユーザー操作時のみ）で起動することの確認
 - [ ] PDF出力と共有シート起動
 - [ ] iPad 実機で回転（縦横）・マルチウィンドウ時の主要画面確認
 
