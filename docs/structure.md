@@ -143,3 +143,29 @@ open DiaryApp.xcodeproj
 
 - ZIPFoundation は `project.yml` の SPM 依存で有効化済み。
 - バンドルID/App Group は `com.yourapp...` のプレースホルダ。リリース前に実IDへ差し替え必須。
+
+
+
+
+
+このリポジトリの全体は `diary_app/` 配下にまとまっています。
+
+`project.yml` は Xcodegen 用の設定ファイルです。
+
+`docs/` はドキュメント置き場で、`TODO.md`、`structure.md`、`dependency_mapping.md` が入っています。
+
+`Shared/` は共有コード置き場で、`ShareTransfer.swift` が入っています（Share Extension と本体の受け渡し用）。
+
+`ShareExtension/` は Share Extension 本体で、`ShareViewController.swift` と `Info.plist`、`ShareExtension.entitlements` が入っています。
+
+`DiaryApp/` はアプリ本体で、`DiaryApp.swift` と `Info.plist`、`DiaryApp.entitlements`、`Products.storekit` に加えて、主要ロジックやUIは次のサブフォルダに分かれています。
+
+`DiaryApp/Models/` はデータモデル（例: `DiaryEntry`、`MediaAttachment`、`UserPlan`）です。
+
+`DiaryApp/Storage/` は永続化（例: `DiaryStore.swift`）です。
+
+`DiaryApp/Import/` はインポート処理（例: `ImportManager` と各Importer）です。
+
+`DiaryApp/Purchases/` は課金まわり（例: `PurchaseManager.swift`）です。
+
+`DiaryApp/Views/` は SwiftUI の画面群で、`ContentView`、日記一覧/詳細/編集、`ImportView`、`BookPreviewView`、`PlanView` などがここにあります。
