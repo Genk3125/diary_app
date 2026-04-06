@@ -30,6 +30,7 @@
 		BDB3A493534137AFA53A20A2 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42BB9B0B16AF33F6DDA377A3 /* ContentView.swift */; };
 		C7387EA2519DAA0E5B6699E6 /* ImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B3A6D9608727FEEA04FA8B /* ImportView.swift */; };
 		CA2B74EEE156663706A87249 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC72AC6509D5AE6BBA566AA /* PurchaseManager.swift */; };
+		D88C9B50C5BA10097D97D5F8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244CB20322402259B1E69A43 /* SettingsView.swift */; };
 		DAB4E819D39C6B421BB89B4E /* QRCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4541DAE5DB4DB303272E4DE /* QRCodeView.swift */; };
 		E0DB49751C4AF406FC07F72B /* DiaryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF923FEE4ADD502405D1AAC9 /* DiaryEditorView.swift */; };
 		F1D4498587BE0164A28090F2 /* DiaryApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F644F958B1979446C83A20D5 /* DiaryApp.swift */; };
@@ -64,13 +65,14 @@
 /* Begin PBXFileReference section */
 		02912387CD465B67A40A7CCD /* ShareExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		05A6308AEBCF0C20251B548D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		0A86FF80F64F56D992CC706B /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
+		0A86FF80F64F56D992CC706B /* Products.storekit */ = {isa = PBXFileReference; path = Products.storekit; sourceTree = "<group>"; };
 		0C48103CEE2F0B35F2BC6A35 /* ImportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportManager.swift; sourceTree = "<group>"; };
 		1490217336AAC745F2B84E04 /* DiaryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryListView.swift; sourceTree = "<group>"; };
+		244CB20322402259B1E69A43 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2680231459F95B5C5A11BEC1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		291421D298EEFAFA8F677DBA /* DiaryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryStore.swift; sourceTree = "<group>"; };
 		2EE0EC1EFA3DDB7851E916B0 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
-		2FA4FAFCF34B63C6AF92AAEC /* DiaryApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DiaryApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2FA4FAFCF34B63C6AF92AAEC /* DiaryApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DiaryApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		32F8A6A1C3658C138386B603 /* DiaryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiaryDetailView.swift; sourceTree = "<group>"; };
 		3CC72AC6509D5AE6BBA566AA /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseManager.swift; sourceTree = "<group>"; };
 		41BC89AFF3CA67D97BDA196E /* DiaryApp.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DiaryApp.entitlements; sourceTree = "<group>"; };
@@ -137,6 +139,7 @@
 			isa = PBXGroup;
 			children = (
 				73223D5C423F39F7763C0A1E /* PlanView.swift */,
+				244CB20322402259B1E69A43 /* SettingsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -383,6 +386,7 @@
 				8B5D4402FFF74719997C86F5 /* PlanView.swift in Sources */,
 				CA2B74EEE156663706A87249 /* PurchaseManager.swift in Sources */,
 				DAB4E819D39C6B421BB89B4E /* QRCodeView.swift in Sources */,
+				D88C9B50C5BA10097D97D5F8 /* SettingsView.swift in Sources */,
 				05D06308A7917676BC89F215 /* ShareTransfer.swift in Sources */,
 				22B514C44E7C47B3C5EF0948 /* TextImporter.swift in Sources */,
 				85A827F92CD0F7B1DBC5B34A /* UserPlan.swift in Sources */,
@@ -417,7 +421,6 @@
 				CODE_SIGN_ENTITLEMENTS = DiaryApp/DiaryApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 87X46JCJFT;
 				INFOPLIST_FILE = DiaryApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -467,7 +470,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DIARY_APP_GROUP_IDENTIFIER = "group.$(DIARY_BUNDLE_ID_PREFIX).diaryapp";
-				DIARY_BUNDLE_ID_PREFIX = com.yourapp;
+				DIARY_BUNDLE_ID_PREFIX = com.kondogenki;
 				DIARY_SHARE_URL_SCHEME = diarybook;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -514,7 +517,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = DiaryApp/DiaryApp.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 87X46JCJFT;
 				INFOPLIST_FILE = DiaryApp/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -583,7 +585,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DIARY_APP_GROUP_IDENTIFIER = "group.$(DIARY_BUNDLE_ID_PREFIX).diaryapp";
-				DIARY_BUNDLE_ID_PREFIX = com.yourapp;
+				DIARY_BUNDLE_ID_PREFIX = com.kondogenki;
 				DIARY_SHARE_URL_SCHEME = diarybook;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;

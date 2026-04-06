@@ -709,7 +709,7 @@ struct BookEntryRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(entry.date, style: .date)
+            Text(entry.date.formatted(date: .long, time: .omitted))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 

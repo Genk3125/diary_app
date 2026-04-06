@@ -72,7 +72,7 @@ struct DiaryDetailView: View {
     @ViewBuilder
     private func headerSection(_ entry: DiaryEntry) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(entry.date, style: .date)
+            Text(entry.date.formatted(date: .long, time: .omitted))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             if !entry.title.isEmpty {

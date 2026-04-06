@@ -20,11 +20,12 @@ struct TextImporter {
         if split.count > 1 { return split }
 
         // Single entry fallback
+        let (title, body) = splitTitleAndBody(from: trimmed)
         return [DiaryEntry(
             id: UUID(),
             date: Date(),
-            title: extractTitle(from: trimmed),
-            body: trimmed,
+            title: title,
+            body: body,
             sourceApp: ImportSource.text.rawValue
         )]
     }
@@ -53,13 +54,14 @@ struct TextImporter {
         guard segments.count > 1 else { return [] }
 
         return segments.map { seg in
-            let body = seg.body
+            let fullText = seg.body
                 .joined(separator: "\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
+            let (title, body) = splitTitleAndBody(from: fullText)
             return DiaryEntry(
                 id: UUID(),
                 date: seg.date,
-                title: extractTitle(from: body),
+                title: title,
                 body: body,
                 sourceApp: ImportSource.text.rawValue
             )
@@ -79,12 +81,17 @@ struct TextImporter {
         return nil
     }
 
-    /// Uses the first non-empty line as title, capped at 60 chars.
-    private static func extractTitle(from text: String) -> String {
-        let first = text
-            .components(separatedBy: .newlines)
-            .first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
-        let t = first.trimmingCharacters(in: .whitespaces)
-        return t.count > 60 ? String(t.prefix(60)) + "…" : t
+    /// Splits text into (title, body): first non-empty line becomes title (capped at 60 chars),
+    /// the remaining lines become body. Title is removed from body to keep them separate.
+    private static func splitTitleAndBody(from text: String) -> (title: String, body: String) {
+        var lines = text.components(separatedBy: .newlines)
+        guard let firstNonEmptyIndex = lines.firstIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) else {
+            return ("", text)
+        }
+        let firstLine = lines[firstNonEmptyIndex].trimmingCharacters(in: .whitespaces)
+        let title = firstLine.count > 60 ? String(firstLine.prefix(60)) + "…" : firstLine
+        lines.remove(at: firstNonEmptyIndex)
+        let body = lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return (title, body)
     }
 }

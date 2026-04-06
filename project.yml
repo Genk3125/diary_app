@@ -3,7 +3,7 @@
 
 name: DiaryApp
 options:
-  bundleIdPrefix: com.yourapp
+  bundleIdPrefix: com.kondogenki
   deploymentTarget:
     iOS: "17.0"
   defaultConfig: Debug
@@ -12,7 +12,7 @@ options:
 settings:
   base:
     CODE_SIGN_STYLE: Automatic
-    DIARY_BUNDLE_ID_PREFIX: com.yourapp
+    DIARY_BUNDLE_ID_PREFIX: com.kondogenki
     DIARY_APP_GROUP_IDENTIFIER: group.$(DIARY_BUNDLE_ID_PREFIX).diaryapp
     DIARY_SHARE_URL_SCHEME: diarybook
 

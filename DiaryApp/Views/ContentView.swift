@@ -9,7 +9,7 @@ struct ContentView: View {
         case diary
         case `import`
         case book
-        case plan
+        case settings
     }
 
     @StateObject private var store = DiaryStore()
@@ -29,9 +29,9 @@ struct ContentView: View {
                 .tag(Tab.book)
                 .tabItem { Label("書籍化", systemImage: "book.closed.fill") }
 
-            PlanView()
-                .tag(Tab.plan)
-                .tabItem { Label("プラン", systemImage: "crown") }
+            SettingsView()
+                .tag(Tab.settings)
+                .tabItem { Label("設定", systemImage: "gearshape") }
         }
         .tabViewStyle(.automatic)
         .environmentObject(store)

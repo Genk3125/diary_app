@@ -239,7 +239,7 @@ struct DiaryRowView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 HStack(spacing: 6) {
-                    Text(entry.date, style: .date)
+                    Text(entry.date.formatted(date: .long, time: .omitted))
                         .font(.caption)
                         .foregroundStyle(.secondary)
 

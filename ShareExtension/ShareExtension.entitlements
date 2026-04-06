@@ -5,6 +5,7 @@
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>$(DIARY_APP_GROUP_IDENTIFIER)</string>
+		<string>group.com.yourapp.diaryapp</string>
 	</array>
 </dict>
 </plist>

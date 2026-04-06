@@ -12,7 +12,7 @@ struct PlanView: View {
     private var pm: PurchaseManager { store.purchaseManager }
 
     var body: some View {
-        NavigationStack {
+        Group {
             List {
                 currentPlanSection
                 bookLayoutSection
@@ -22,17 +22,17 @@ struct PlanView: View {
                 }
                 restoreSection
             }
-            .regularWidthContent(maxWidth: 860)
-            .navigationTitle("プラン")
-            .alert("エラー", isPresented: $showError) {
-                Button("OK") {}
-            } message: {
-                Text(errorMessage ?? "")
-            }
-            .task {
-                if pm.proProduct == nil {
-                    await pm.refreshProducts()
-                }
+        }
+        .regularWidthContent(maxWidth: 860)
+        .navigationTitle("プラン")
+        .alert("エラー", isPresented: $showError) {
+            Button("OK") {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+        .task {
+            if pm.proProduct == nil {
+                await pm.refreshProducts()
             }
         }
     }
